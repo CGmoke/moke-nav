@@ -1,20 +1,22 @@
 # Nav2 自主导航机器人项目规划
 
 > 目标：从零走通 **URDF 建模 → Gazebo 仿真世界 → SLAM 建图 → Nav2 导航 → 调优评测** 的完整闭环，最终交付一个能复现、能评测、能讲清楚原理的导航项目。
+>
+> 修订 v1.1（2026-10-27）：按已落地的 URDF v2.0（**四轮差速版**）同步设计基线、阶段进度、验收标准与参数表。
 
 ---
 
 ## 0. 当前环境（已核查，不用再装）
 
-| 组件 | 版本 / 状态 | 说明 |
-|---|---|---|
-| ROS 2 | Jazzy（`/opt/ros/jazzy`） | Ubuntu 24.04 对应版本 |
-| Nav2 | 34 个包已安装 | 默认 `MPPI` 控制器 + `NavFn` 规划器，另有 `Smac`、`RPP`、`Graceful`、`nav2_route` |
-| Gazebo | Harmonic（gz-sim 8.15） | 通过 `ros-jazzy-gz-sim-vendor` 提供 |
-| ros_gz | 1.0.24 | `ros_gz_sim` / `ros_gz_bridge` / `ros_gz_image` |
-| SLAM | `slam_toolbox`、`cartographer_ros` | 二选一，推荐 slam_toolbox |
-| 控制 | `ros2_control`、`diff_drive_controller` | 真机阶段才需要，仿真阶段可用 gz 插件 |
-| 其他 | `robot_localization`、`teleop_twist_keyboard` | EKF 融合、键盘遥控 |
+| 组件     | 版本 / 状态                                      | 说明                                                                  |
+| ------ | -------------------------------------------- | ------------------------------------------------------------------- |
+| ROS 2  | Jazzy（`/opt/ros/jazzy`）                      | Ubuntu 24.04 对应版本                                                   |
+| Nav2   | 34 个包已安装                                     | 默认 `MPPI` 控制器 + `NavFn` 规划器，另有 `Smac`、`RPP`、`Graceful`、`nav2_route` |
+| Gazebo | Harmonic（gz-sim 8.15）                        | 通过 `ros-jazzy-gz-sim-vendor` 提供                                     |
+| ros_gz | 1.0.24                                       | `ros_gz_sim` / `ros_gz_bridge` / `ros_gz_image`                     |
+| SLAM   | `slam_toolbox`、`cartographer_ros`            | 二选一，推荐 slam_toolbox                                                 |
+| 控制     | `ros2_control`、`diff_drive_controller`       | 真机阶段才需要，仿真阶段可用 gz 插件                                                |
+| 其他     | `robot_localization`、`teleop_twist_keyboard` | EKF 融合、键盘遥控                                                         |
 
 **注意**：Jazzy 不再支持 Gazebo Classic（`gazebo_ros`）。网上大量教程用的是 `gazebo_ros` + `libgazebo_ros_diff_drive.so`，在你这套环境下**跑不通**，必须用 `ros_gz` + `gz::sim::systems::DiffDrive`。这是踩坑率最高的一点。
 
@@ -22,24 +24,70 @@
 
 ## 1. 项目定义（先明确边界，再动手）
 
-### 1.1 项目假设（可按你的实际需求修改）
+### 1.1 项目定义（已按 URDF v2.0 固化）
 
-- 底盘：两轮差速 + 万向轮（也可换阿克曼，后面阶段 4 参数不同）
-- 传感器：2D 激光雷达（`gpu_lidar`），可选 IMU / 深度相机
+- 底盘：**四轮差速（4WD）**，四轮独立驱动、同侧同速，无万向轮（对应 `robot_params.yaml v2.0` /《轮式机器人建模规范》v1.5）
+- 传感器：2D 激光雷达 + IMU + 深度相机（隐藏式车头，-15° 下俯）+ RGB 摄像头（平嵌顶板前缘），套件详见 §1.3
+- 载荷：预留机械臂安装基座（`arm_base_link`，载荷 5 kg；本项目导航部分不依赖）
 - 场景：室内约 10 m × 10 m，含走廊、门、窄通道、可移动障碍
 - 运行方式：纯仿真（阶段 6 可选真机）
 
 ### 1.2 可验收的指标（写进 README，最后逐条打勾）
 
-| 维度 | 指标 |
-|---|---|
-| 建模 | `check_urdf` 通过；RViz 中 TF 树完整；轮子转向/转速与指令一致 |
+| 维度 | 指标                                                |
+| -- | ------------------------------------------------- |
+| 建模 | `check_urdf` 通过（✅ 已达成）；RViz 中 TF 树完整；同侧轮同速、四轮转向与指令一致 |
 | 仿真 | 键盘遥控可行驶；`/scan`、`/odom`、`/tf`、`/clock` 全部正常且时间戳一致 |
-| 建图 | 10×10 m 场景地图闭合、无重影、墙体厚度合理（≤2 层栅格） |
-| 定位 | AMCL 从初始位姿收敛 < 3 s；静止时定位误差 < 0.1 m / 2° |
-| 导航 | 10 个随机目标点成功率 ≥ 90%，平均耗时 < 40 s，无碰撞 |
-| 动态 | 有行人横穿时能减速/绕行或停车等待，不碰撞 |
-| 工程 | 一条 launch 启动全链路；参数全部外置 yaml；有批量评测脚本和 CSV 结果 |
+| 建图 | 10×10 m 场景地图闭合、无重影、墙体厚度合理（≤2 层栅格）                 |
+| 定位 | AMCL 从初始位姿收敛 < 3 s；静止时定位误差 < 0.1 m / 2°           |
+| 导航 | 10 个随机目标点成功率 ≥ 90%，平均耗时 < 40 s，无碰撞                |
+| 动态 | 有行人横穿时能减速/绕行或停车等待，不碰撞                             |
+| 工程 | 一条 launch 启动全链路；参数全部外置 yaml；有批量评测脚本和 CSV 结果       |
+
+### 1.3 当前实现基线（2026-10-27，依据已落地的 URDF 代码）
+
+`nav_bot_description` 的 URDF/Xacro **已经写完、通过 `check_urdf`、包已编译**（xacro 展开 + 拓扑校验均通过）。后续阶段以这组实测参数为基准：
+
+**拓扑（11 links / 10 joints，`check_urdf` 实测）**
+
+```text
+base_link（根，原点位于地面，兼作 base_footprint 角色）
+├── wheel_lf/rf/lb/rb_link     continuous ×4（axis +y，同侧同速）
+├── platform_link              fixed（顶板 400×320×8，离地 0.24 m）
+│   ├── arm_base_link          fixed（机械臂预留基座）
+│   └── camera_link            fixed（RGB，平嵌顶板前缘）
+├── lidar_link                 fixed（扫描面离地 0.28 m）
+├── imu_link                   fixed（底盘中心，贴轮轴）
+└── depth_camera_link          fixed（隐藏式车头，-15° 下俯在 gz 传感器 pose 中实现）
+```
+
+**关键参数（权威来源：`urdf/common/properties.xacro`）**
+
+| 参数 | 值 | 备注 |
+|---|---|---|
+| 轮半径 R | 0.09 m（Ø180） | 与 yaml 的 0.10 不一致，见下方待决事项 |
+| 轮距 track_width | 0.48 m | 左右轮 y = ±0.24 |
+| 轴距 wheelbase | 0.52 m | 前后轮 x = ±0.26 |
+| 底盘 | 520×400×120 mm | 离地间隙 0.06 m |
+| 总质量 | ≈ 16.3 kg | 电池 2.8 kg 惯量并入 base_link（11.9 kg） |
+| 限速 | 0.8 m/s / 1.5 rad/s | 350 rpm 估算 |
+| 驱动轮摩擦 | mu = 0.9，kp 1e6 / kd 100 | gz 对 URDF mu 的转换阶段 2 在 world/SDF 复核 |
+
+**传感器套件（gz 插件均已在 `gazebo.xacro` 声明）**
+
+| 传感器 | gz 类型 | 关键配置 | ROS 话题（待阶段 2 桥接） |
+|---|---|---|---|
+| 2D 激光雷达 | `gpu_lidar` | 720 线 / 10 Hz / 0.15–12 m / 高斯 σ=0.01 | `/scan` |
+| IMU | `imu` | 100 Hz，陀螺 σ=0.0002，加计 σ=0.017 | `/imu/data` |
+| 深度相机 | `rgbd_camera` | 15 Hz / 640×480 / FOV 59° / clip 0.28–10 m / -15° 下俯 | `/depth_camera/*` |
+| RGB 摄像头 | `camera` | 30 Hz / 640×480 / FOV 60° | `/camera/image` |
+
+**驱动插件（已写入 `gazebo.xacro`）**：`gz::sim::systems::DiffDrive` 挂 4 个关节（`left/right_front_wheel_joint` + `left/right_rear_wheel_joint`），`wheel_separation=0.48`、`wheel_radius=0.09`、odom 30 Hz、`odom → base_link`；另配 `JointStatePublisher` 发布 4 轮关节状态。
+
+**发现的两处待决事项（本次核对时发现，未擅自改代码）**：
+
+1. **无 `base_footprint` link**：`base_link` 原点直接放在地面、兼作 footprint。因此 Nav2 的 `robot_base_frame` 与 slam_toolbox 的 `base_frame` 都要配成 `base_link`，阶段 2 的 `tf2_echo` 验收也用 `odom → base_link`。若后期想恢复标准 REP-105 链，需在 `base.xacro` 加 z=0 的 fixed `base_footprint`，并**同步修改 gz 插件 `child_frame_id`**——两处只改一处会 TF 打架。
+2. **`config/robot_params.yaml`（R=0.10、底盘 420×500）与 `properties.xacro`（R=0.09、底盘 520×400）数值不一致**：以 `properties.xacro` 为准（它是实际通过校验的模型），yaml 应在阶段 2 开始前同步，否则照 yaml 抄里程计参数会引入尺度误差。
 
 ---
 
@@ -58,6 +106,7 @@ moke-nav_ws/
 ```
 
 约定：
+
 - 编译用 `colcon build --symlink-install`，改 Python/launch/xacro 不用重编
 - 每个包 `package.xml` 依赖写全（`nav2_bringup`、`ros_gz_sim`、`xacro`…），否则 `rosdep` 检查不过
 - 所有 launch 用 `DeclareLaunchArgument` 暴露 `use_sim_time`、`map`、`params_file`、`world`，方便切换仿真/真机
@@ -66,19 +115,20 @@ moke-nav_ws/
 
 ## 3. 阶段计划
 
-### 阶段 1：URDF / Xacro 机器人建模（约 1 周）
+### 阶段 1：URDF / Xacro 机器人建模（约 1 周，✅ 代码已完成）
 
 **要产出的东西**：`nav_bot_description` 包，能在 RViz 里看到完整机器人并手动转轮子。
+**当前状态**：URDF 已写完并通过 `check_urdf`（拓扑见 §1.3），`display.launch.py` + `display.rviz` 已就位；剩余 RViz 视觉验证。
 
 任务清单：
 
 1. **link 三件套**：`visual`（外观，可用 mesh）、`collision`（碰撞体，**必须用简化几何体**）、`inertial`（质量 + 惯性张量，**不能省**）
-2. **joint**：`fixed`（雷达、万向轮支架）、`continuous`（驱动轮，绕 y 轴）、`revolute`（万向轮）；注意 `axis`、`origin rpy`、`limit`
+2. **joint**：`fixed`（顶板、机械臂基座、各传感器）、`continuous`（驱动轮 ×4，绕 y 轴）；注意 `axis`、`origin rpy`、`limit`
 3. **xacro 参数化**：轮半径、轮距、车体尺寸、雷达高度全部写成 `<xacro:property>`，后面调参只改一处
 4. **惯性张量计算**（最容易错的地方）：
    - 长方体：`Ixx = m(h²+d²)/12`，`Iyy = m(w²+d²)/12`，`Izz = m(w²+h²)/12`
    - 圆柱（绕自身轴为 z）：`Izz = m r²/2`，`Ixx = Iyy = m(3r²+h²)/12`
-   - 轮子质量给 0.2~0.5 kg，车体 3~8 kg，别写成 1 kg 的"纸片车"
+   - 轮子质量给 0.2~~0.5 kg，车体 3~~8 kg，别写成 1 kg 的"纸片车"
 5. **Gazebo 扩展标签**：`<gazebo reference="wheel_link">` 里设置 `<mu1>/<mu2>` 摩擦、`<material>` 颜色，否则车轮打滑、模型全灰
 6. **验证三件套**：
    ```bash
@@ -87,17 +137,18 @@ moke-nav_ws/
    ros2 run tf2_tools view_frames                     # 生成 frames.pdf 看树结构
    ```
 
-**验收**：TF 树为 `base_footprint → base_link → {left_wheel, right_wheel, caster, laser_link}`；拖动 joint slider 轮子转动方向正确；车体不悬空、不陷地。
+**验收**（大半已达成）：`check_urdf` 通过 ✅；TF 树为 `base_link → {wheel_lf/rf/lb/rb, platform → {arm_base, camera}, lidar, imu, depth_camera}` ✅；RViz 中拖动 joint slider 确认同侧轮同速、四轮转向与前进方向一致 ⬜；四轮同时接地（轮心 z = R = 0.09、底盘底面 z = 0.06）⬜；总质量核对 ≈ 16.3 kg ⬜。剩余三项跑一次 `display.launch.py` 即可确认，通过后在 `docs/acceptance.md` 打勾。
 
 **这一步的典型错误**：
+
 - `inertial` 缺失或质量为 0 → 进 Gazebo 后模型乱飞、瞬移
 - 把高精度 mesh 同时当 `collision` → 物理计算爆炸、帧率暴跌
 - 左右轮 `axis` 方向写成一致 → 一个前进一个后退，原地打转
-- `base_footprint` 高度 ≠ 轮半径 → 车陷进地面或悬空，costmap 中心偏移
+- 轮心 z ≠ 轮半径 R（本机型 `base_link` 原点在地面）→ 车陷进地面或悬空，costmap 中心偏移
 
 ---
 
-### 阶段 2：Gazebo Harmonic 仿真世界（约 1.5 周）
+### 阶段 2：Gazebo Harmonic 仿真世界（约 1.5 周，模型侧插件已就绪，world/桥接待做）
 
 **要产出的东西**：`nav_bot_gazebo` 包，自定义 world + 可遥控的机器人 + 正确的 ROS 话题。
 
@@ -109,44 +160,35 @@ moke-nav_ws/
    ros2 run ros_gz_sim create -topic /robot_description -name nav_bot -z 0.05
    ```
    配合 `robot_state_publisher` 把 xacro 发布到 `/robot_description`
-3. **差速驱动插件**（写在 URDF 的 `<gazebo>` 标签里，Gazebo 启动时读取）：
-   ```xml
-   <plugin filename="gz-sim-diff-drive-system" name="gz::sim::systems::DiffDrive">
-     <left_joint>left_wheel_joint</left_joint>
-     <right_joint>right_wheel_joint</right_joint>
-     <wheel_separation>0.32</wheel_separation>   <!-- 必须等于 URDF 实际轮距 -->
-     <wheel_radius>0.05</wheel_radius>           <!-- 必须等于 URDF 实际轮半径 -->
-     <max_linear_velocity>0.6</max_linear_velocity>
-     <max_angular_velocity>1.5</max_angular_velocity>
-     <odom_topic>odom</odom_topic>
-     <tf_topic>tf</tf_topic>
-     <frame_id>odom</frame_id>
-     <child_frame_id>base_footprint</child_frame_id>
-     <odom_publish_frequency>50</odom_publish_frequency>
-   </plugin>
-   ```
-4. **雷达**：`<sensor type="gpu_lidar">`，`<topic>scan</topic>`、`<gz_frame_id>laser_link</gz_frame_id>`，采样 360 线、10 Hz、量程 0.12~12 m；**`gz_frame_id` 必须和 URDF 的 link 名一致**，否则点云挂错坐标系
-5. **ros_gz_bridge 配置**（yaml 形式，别用一长串命令行）：
-   | ROS 话题 | 方向 | 类型 |
-   |---|---|---|
-   | `/clock` | GZ → ROS | `rosgraph_msgs/msg/Clock` |
-   | `/scan` | GZ → ROS | `sensor_msgs/msg/LaserScan` |
-   | `/odom` | GZ → ROS | `nav_msgs/msg/Odometry` |
-   | `/tf` | GZ → ROS | `tf2_msgs/msg/TFMessage` |
-   | `/cmd_vel` | ROS → GZ | `geometry_msgs/msg/Twist` |
+3. **差速驱动插件**：✅ **已写入 `gazebo.xacro`，无需重复配置**——`gz::sim::systems::DiffDrive` 挂 4 关节（同侧同速），`wheel_separation=0.48`、`wheel_radius=0.09`（与 `properties.xacro` 同值）、限速 0.8 m/s / 1.5 rad/s、odom 30 Hz、`frame_id=odom`、`child_frame_id=base_link`；另有 `gz-sim-joint-state-publisher-system` 发布 4 轮 `/joint_states`。**注意**：本机型无 `base_footprint`，插件 child frame 直接是 `base_link`（见 §1.3 待决事项 1）
+4. **雷达**：✅ 已在 `gazebo.xacro` 声明 `<sensor type="gpu_lidar">`（挂 `lidar_link`，`<topic>scan</topic>`，720 线、10 Hz、0.15~12 m）；**`gz_frame_id` 必须和 URDF 的 link 名一致**，否则点云挂错坐标系
+5. **ros_gz_bridge 配置**（yaml 形式，别用一长串命令行；待写入 `nav_bot_gazebo/config/gz_bridge.yaml`，本机型传感器比下表多 IMU / 深度相机 / RGB，按 §1.3 的话题补齐）：
+   | ROS 话题          | 方向       | 类型                           |
+   | --------------- | -------- | ---------------------------- |
+   | `/clock`        | GZ → ROS | `rosgraph_msgs/msg/Clock`    |
+   | `/scan`         | GZ → ROS | `sensor_msgs/msg/LaserScan`  |
+   | `/odom`         | GZ → ROS | `nav_msgs/msg/Odometry`      |
+   | `/tf`           | GZ → ROS | `tf2_msgs/msg/TFMessage`     |
+   | `/cmd_vel`      | ROS → GZ | `geometry_msgs/msg/Twist`    |
    | `/joint_states` | GZ → ROS | `sensor_msgs/msg/JointState` |
+   | `/imu/data`     | GZ → ROS | `sensor_msgs/msg/Imu`        |
+   | `/depth_camera/*` | GZ → ROS | `sensor_msgs/msg/Image`、`PointCloud2` 等 |
+   | `/camera/image` | GZ → ROS | `sensor_msgs/msg/Image`      |
 6. **`use_sim_time:=true`**：`robot_state_publisher`、`rviz2`、`slam_toolbox`、所有 nav2 节点都要开，缺一个就会 TF 时间戳错乱
 7. **建自己的 world**：墙体（薄 box）、两扇门（一窄一宽）、一条 1.2 m 宽走廊、几个圆柱/箱子障碍。用 `gz sim` 的模型编辑器摆，或直接写 SDF
 
 **验收**：
+
 ```bash
 ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -p use_sim_time:=true
 ros2 topic hz /scan /odom /tf
-ros2 run tf2_ros tf2_echo odom base_footprint
+ros2 run tf2_ros tf2_echo odom base_link   # 本机型无 base_footprint，见 §1.3
 ```
+
 机器人能前进、转向；`/scan` 在 RViz 里贴合墙面不穿墙；`/odom` 位移与视觉一致。
 
 **典型错误**：
+
 - 只桥接了 `/scan`，忘桥 `/clock` → 全链路时间戳为 0，RViz 报 "message removed because timestamp is too old"
 - 同时开 `ros2_control` 的 `diff_drive_controller` 和 gz `DiffDrive` 插件 → 两套 TF 打架，odom 抽搐
 - 插件里 `wheel_separation` 与 URDF 不一致 → 走 1 m 里程计只报 0.8 m，AMCL 永远收敛不好
@@ -206,26 +248,26 @@ ros2 run tf2_ros tf2_echo odom base_footprint
 
 **① 输入层（顶部两个虚线框 + 左侧四个公共入口）**
 
-| 图中名称 | 中文对应 | 说明 |
-|---|---|---|
+| 图中名称              | 中文对应        | 说明                                                                  |
+| ----------------- | ----------- | ------------------------------------------------------------------- |
 | Waypoint Follower | 单目标点 / 多目标点 | 依次下发一串目标点做多点巡航（`nav2_waypoint_follower`，走 `FollowWaypoints` action） |
-| Autonomy System | 自动化系统 | 上层任务调度，决定"去哪、干什么"，通过 action 调导航 |
-| BT | 行为树 | 行为树 XML，决定"先规划还是先脱困" |
-| TF | TF 变换 | `map→odom→base_link` 坐标链，缺一段全链路就废 |
-| map | 地图 | 静态栅格地图，全局规划的底图 |
-| Sensor Data | 传感器数据 | 激光 / 点云 / 里程计，喂给局部代价地图 |
+| Autonomy System   | 自动化系统       | 上层任务调度，决定"去哪、干什么"，通过 action 调导航                                     |
+| BT                | 行为树         | 行为树 XML，决定"先规划还是先脱困"                                                |
+| TF                | TF 变换       | `map→odom→base_link` 坐标链，缺一段全链路就废                                   |
+| map               | 地图          | 静态栅格地图，全局规划的底图                                                      |
+| Sensor Data       | 传感器数据       | 激光 / 点云 / 里程计，喂给局部代价地图                                              |
 
 **② 执行层（蓝底框：六个 Server + 一个 Manager）**
 
-| 组件 | 中文说明 | 职责 | 关键依赖 |
-|---|---|---|---|
-| BT Navigator Server（BT Plugin） | 行为树服务器（核心） | 读行为树编排整个导航流程，向其它 server 发 action；失败时触发恢复分支 | BT XML、各 server 的 action 接口 |
-| Planner Server（Global Costmap → Planner Plugin） | 全局路径规划 | 在全局代价地图上搜起点到目标的路径（NavFn / Smac） | 静态地图 + 全局 costmap |
-| Controller Server（Local Costmap → Controller Plugin） | 运动控制（本地路径规划） | 跟踪全局路径、实时避障，输出 `cmd_vel` | 局部 costmap + 传感器数据 |
-| Behavior Server（Controller Plugin） | 恢复行为 | 卡住 / 被围时执行 Spin、BackUp、Wait 等脱困动作 | 局部 costmap |
-| Smoother Server（Costmap Sub / Footprint Sub） | 路径平滑 | 把折线路径修成满足曲率与 footprint 约束的平滑轨迹 | 路径、footprint、costmap |
-| Route Server | 多地图拼接 / 长程路由 | 跨多张地图的长距离路线规划 | 多张地图、路由图 |
-| Lifecycle Manager | 生命周期管理 | 统一 configure / activate / deactivate 所有托管节点，保证启动顺序 | 节点清单 |
+| 组件                                                   | 中文说明         | 职责                                                 | 关键依赖                        |
+| ---------------------------------------------------- | ------------ | -------------------------------------------------- | --------------------------- |
+| BT Navigator Server（BT Plugin）                       | 行为树服务器（核心）   | 读行为树编排整个导航流程，向其它 server 发 action；失败时触发恢复分支         | BT XML、各 server 的 action 接口 |
+| Planner Server（Global Costmap → Planner Plugin）      | 全局路径规划       | 在全局代价地图上搜起点到目标的路径（NavFn / Smac）                    | 静态地图 + 全局 costmap           |
+| Controller Server（Local Costmap → Controller Plugin） | 运动控制（本地路径规划） | 跟踪全局路径、实时避障，输出 `cmd_vel`                           | 局部 costmap + 传感器数据          |
+| Behavior Server（Controller Plugin）                   | 恢复行为         | 卡住 / 被围时执行 Spin、BackUp、Wait 等脱困动作                  | 局部 costmap                  |
+| Smoother Server（Costmap Sub / Footprint Sub）         | 路径平滑         | 把折线路径修成满足曲率与 footprint 约束的平滑轨迹                     | 路径、footprint、costmap        |
+| Route Server                                         | 多地图拼接 / 长程路由 | 跨多张地图的长距离路线规划                                      | 多张地图、路由图                    |
+| Lifecycle Manager                                    | 生命周期管理       | 统一 configure / activate / deactivate 所有托管节点，保证启动顺序 | 节点清单                        |
 
 **③ 框中连线的含义（谁调谁）**
 
@@ -237,11 +279,11 @@ ros2 run tf2_ros tf2_echo odom base_footprint
 
 **④ 输出层（底部三个虚线框）**
 
-| 图中名称 | 中文对应 | 说明 |
-|---|---|---|
-| Velocity Smoother | 速度平滑 | 限制加速度 / 加加速度，防止起步停车抖动（`nav2_velocity_smoother`） |
-| Collision Monitor | 障碍物监测 | 独立安全兜底，检测到即将碰撞直接截断或改写速度指令 |
-| Robot Base | 控制机器人运动 | 底盘执行层：仿真里是 gz `DiffDrive` 插件，真机是 `ros2_control` + `diff_drive_controller` |
+| 图中名称              | 中文对应    | 说明                                                                        |
+| ----------------- | ------- | ------------------------------------------------------------------------- |
+| Velocity Smoother | 速度平滑    | 限制加速度 / 加加速度，防止起步停车抖动（`nav2_velocity_smoother`）                           |
+| Collision Monitor | 障碍物监测   | 独立安全兜底，检测到即将碰撞直接截断或改写速度指令                                                 |
+| Robot Base        | 控制机器人运动 | 底盘执行层：仿真里是 gz `DiffDrive` 插件，真机是 `ros2_control` + `diff_drive_controller` |
 
 > 容易看混的两组：`Smoother Server（路径平滑）` 处理的是**路径**，`Velocity Smoother（速度平滑）` 处理的是**速度指令**，一个在规划侧、一个在输出侧；`Behavior Server（恢复行为）` 才是"车辆陷入困境时脱困"，不要和 `Route Server（多地图拼接）` 搞混。
 
@@ -300,6 +342,7 @@ ros2 run tf2_ros tf2_echo odom base_footprint
   ```
   调不动可以切 `DWB` 对比（`nav2_dwb_controller`），报告里做横向对比很有说服力
 - **行为树**：默认 `navigate_to_pose_w_replanning_and_recovery.xml`，先读懂再改。想加"窄通道减速"就在 `<RateController>` 里插自定义子树
+
 
 **4.3 启动与验证顺序（不要跳步）**
 
@@ -454,7 +497,7 @@ planner_server:
 
 | 参数 | 位置 | 建议初值 | 说明 |
 |---|---|---|---|
-| `wheel_separation` / `wheel_radius` | gz DiffDrive | 与 URDF 严格一致 | 不一致则里程计尺度错 |
+| `wheel_separation` / `wheel_radius` | gz DiffDrive | **0.48 / 0.09**（= properties.xacro） | 不一致则里程计尺度错 |
 | `resolution` | costmap / map | 0.05 | 越小越精细越吃 CPU |
 | `robot_radius` / `footprint` | costmap | 按实际外形 | 有形状优先用 footprint |
 | `inflation_radius` | costmap | 0.3~0.4 | 需 > 内切半径 + 安全余量 |
@@ -472,7 +515,9 @@ planner_server:
 | 症状 | 最可能原因 |
 |---|---|
 | 模型一进 Gazebo 就乱飞/瞬移 | `inertial` 缺失或质量为 0 |
-| 车轮打滑、上坡上不去 | `<mu1>/<mu2>` 未设置或过小 |
+| 车轮打滑、上坡上不去 | `<mu1>/<mu2>` 未设置或过小（本机型已设 0.9，gz 转换结果需在 world 复核） |
+| 直行跑偏、odom 抖动（4WD 特有） | 前后轮互顶：mu 或轮距/轴距与模型不符，需里程计标定 |
+| Nav2/slam_toolbox 报 base_footprint 不存在 | 本机型无 footprint link，`robot_base_frame` / `base_frame` 应配 `base_link`（见 §1.3） |
 | RViz 无 scan，但 gz 里有 | bridge 话题名不匹配 / 方向写反 |
 | TF 报 "timestamp too old" | `use_sim_time` 未统一 / `/clock` 未桥接 |
 | odom 抽搐、机器人抖动 | 两处同时发布 `odom→base_link` |
@@ -490,8 +535,8 @@ planner_server:
 
 | 周 | 内容 | 里程碑 |
 |---|---|---|
-| 1 | ROS 2 基础 + TF2 + 阶段 1 建模 | URDF 在 RViz 中正确显示 |
-| 2 | 阶段 2 仿真世界 + 差速插件 + 雷达桥接 | 键盘遥控跑起来 |
+| 1 | ROS 2 基础 + TF2 + 阶段 1 建模 | ~~URDF 在 RViz 中正确显示~~ ✅ 代码完成，剩 RViz 视觉验证 |
+| 2 | 阶段 2 仿真世界 + 桥接（插件已在 gazebo.xacro） | 键盘遥控跑起来 |
 | 3 | 自定义 world 搭建 + 传感器调试 + 阶段 3 建图 | 得到可用地图 |
 | 4-5 | 阶段 4：AMCL + costmap + planner + controller | 单点导航成功 |
 | 6 | 阶段 4 收尾：行为树、recovery、异常场景 | 10 目标 ≥ 8 成功 |
@@ -518,10 +563,10 @@ planner_server:
 
 | 部件 | 作用 | 数据/接口 | 仿真对应 | 选型建议（真机） |
 |---|---|---|---|---|
-| 车架底盘 | 承载所有部件 | — | URDF `base_link` 尺寸 | 铝型材/双层亚克力，≥ 25×20 cm |
-| 直流减速电机 ×2 | 驱动轮 | PWM | gz DiffDrive 插件 | 12V 减速电机，配 泰坦/乐高式联轴器 |
-| 轮式编码器 ×2 | 轮速反馈 → 里程计 | AB 相脉冲 | 插件内部积分 | 磁编码器（霍尔）优先，精度 > 光栅 |
-| 驱动轮 ×2 + 万向轮 ×1 | 差速运动结构 | — | URDF wheel/caster link | 轮径 65~80 mm，万向轮在后 |
+| 车架底盘 | 承载所有部件 | — | URDF `base_link` 尺寸 | 本机型 520×400×120 mm，离地 0.06 m |
+| 直流减速电机 ×4 | 四轮独立驱动（4WD） | PWM | gz DiffDrive 插件（4 关节） | 12V 减速电机，350 rpm 档 |
+| 轮式编码器 ×4 | 轮速反馈 → 里程计 | AB 相脉冲 | 插件内部积分 | 磁编码器（霍尔）优先，精度 > 光栅 |
+| 驱动轮 ×4（无万向轮） | 四轮差速运动结构 | — | URDF wheel_lf/rf/lb/rb_link | 轮径 Ø180、宽 60 mm，mu ≥ 0.9 |
 | 电机驱动板 | MCU→电机功率放大 | PWM/串口 | 无（插件替代） | TB6612（小电流）/ BTS7960（大电流） |
 | 下位机 MCU | 读编码器、PID、差速运动学、上报里程计 | USB 串口 / micro-ROS | 无（插件替代） | STM32F4 / ESP32 |
 | 上位机（主控电脑） | 跑 ROS 2 + Nav2 全栈 | — | 你的开发机 | 树莓派 5 / Jetson Orin Nano / NUC |
@@ -541,6 +586,8 @@ planner_server:
 | 超声波传感器 ×2~4 | 雷达近距盲区（< 0.15 m）补盲 | GPIO/串口 | `<sensor type="gpu_lidar">` 限距模拟 | HC-SR04 |
 | 防撞条（bumper） | 物理碰撞最后一道防线 | GPIO 中断 | 无 | 微动开关 + 泡棉 |
 | 磁力计/电子罗盘 | 修正航向漂移（9 轴 IMU 自带） | Imu 消息 | — | 与 IMU 一体化 |
+
+> 注：深度相机与 RGB 摄像头在 URDF v2.0 中**已建 link 并声明 gz 传感器**（外形 v2.4：深度相机隐藏于车头、RGB 平嵌顶板前缘），真机选型时按上表模块落地即可。
 
 ### 10.3 可选件（进阶场景）
 
@@ -564,7 +611,7 @@ IMU ───────→ EKF 融合里程计（robot_localization）  ← �
 超声波 ────→ 近距避障冗余                          ← 可选
 ```
 
-**结论**：最小可用清单 = 底盘 + 2×电机 + 编码器 + 万向轮 + 驱动板 + MCU + 上位机 + 2D 激光雷达 + IMU + 电池 + 降压模块。仿真阶段只需要 URDF 里的几何尺寸和质量参数；真机阶段才涉及选型采购。
+**结论**：最小可用清单 = 底盘 + 4×电机 + 4×编码器 + 驱动板 + MCU + 上位机 + 2D 激光雷达 + IMU + 电池 + 降压模块。本机型 URDF 中还预留了**深度相机（隐藏式车头）、RGB 摄像头（平嵌顶板）、机械臂基座**三类 link，真机化时按 §1.3 的传感器表选型即可。仿真阶段只需要 URDF 里的几何尺寸和质量参数；真机阶段才涉及选型采购。
 
 ---
 
