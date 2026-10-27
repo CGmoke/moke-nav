@@ -5,19 +5,19 @@
 
 ## 目录职责
 
-| 路径 | 放什么 | 状态 |
-|---|---|---|
-| `urdf/nav_bot.urdf.xacro` | 顶层装配文件，聚合所有子 xacro（11 links · 10 joints） | 已建 |
-| `urdf/base.xacro` | `base_link` 车体 + `platform_link` 顶板（含角柱）+ `arm_base_link` | 已建 |
-| `urdf/wheels.xacro` | 四驱动轮 lf/rf/lb/rb（`continuous`，同侧同速） | 已建 |
-| `urdf/sensors.xacro` | `lidar_link` / `imu_link` / `depth_camera_link` / `camera_link` | 已建 |
-| `urdf/gazebo.xacro` | `<gazebo>` 扩展：gz-sim DiffDrive（4 关节）、摩擦、`gpu_lidar` 等 | 已建 |
-| `urdf/common/properties.xacro` | 所有尺寸/质量/轮距参数的 `<xacro:property>` | 已建 |
-| `urdf/common/inertia.xacro` | 长方体/圆柱/球惯性张量宏 | 已建 |
-| `urdf/common/materials.xacro` | 颜色材质定义 | 已建 |
-| `meshes/` | `.stl` / `.dae` 外观模型（无则用基本几何体） | 空 |
-| `config/` | `display.rviz` + `robot_params.yaml`（参数源副本） | 已建 |
-| `launch/` | `display.launch.py`（RViz + robot_state_publisher + jsp_gui） | 已建 |
+| 路径                             | 放什么                                                                   | 状态 |
+| -------------------------------- | ------------------------------------------------------------------------ | ---- |
+| `urdf/nav_bot.urdf.xacro`      | 顶层装配文件，聚合所有子 xacro（11 links · 10 joints）                  | 已建 |
+| `urdf/base.xacro`              | `base_link` 车体 + `platform_link` 顶板（含角柱）+ `arm_base_link` | 已建 |
+| `urdf/wheels.xacro`            | 四驱动轮 lf/rf/lb/rb（`continuous`，同侧同速）                         | 已建 |
+| `urdf/sensors.xacro`           | `lidar_link` / `imu_link` / `depth_camera_link` / `camera_link`  | 已建 |
+| `urdf/gazebo.xacro`            | `<gazebo>` 扩展：gz-sim DiffDrive（4 关节）、摩擦、`gpu_lidar` 等    | 已建 |
+| `urdf/common/properties.xacro` | 所有尺寸/质量/轮距参数的 `<xacro:property>`                            | 已建 |
+| `urdf/common/inertia.xacro`    | 长方体/圆柱/球惯性张量宏                                                 | 已建 |
+| `urdf/common/materials.xacro`  | 颜色材质定义                                                             | 已建 |
+| `meshes/`                      | `.stl` / `.dae` 外观模型（无则用基本几何体）                         | 空   |
+| `config/`                      | `display.rviz` + `robot_params.yaml`（参数源副本）                   | 已建 |
+| `launch/`                      | `display.launch.py`（RViz + robot_state_publisher + jsp_gui）          | 已建 |
 
 ## 关键约束（踩过的坑）
 
