@@ -12,7 +12,7 @@
       <geometry>
         <cylinder radius="${column_radius}" length="${column_height}"/>
       </geometry>
-      <material name="chassis_dark"/>
+      <material name="body_white"/>
     </visual>
   </xacro:macro>
 
@@ -23,7 +23,7 @@
       <geometry>
         <box size="${chassis_x} ${chassis_y} ${chassis_z}"/>
       </geometry>
-      <material name="chassis_dark"/>
+      <material name="body_white"/>
     </visual>
     <!-- 前脸灯带：底盘前面板细长青色灯条（纯视觉件，参考整机渲染风格） -->
     <visual>

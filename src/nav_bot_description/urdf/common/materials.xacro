@@ -6,7 +6,7 @@
 -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-  <!-- 机身主色 #E8ECF1（顶板/外壳） -->
+  <!-- 车身主色 白色 #E8ECF1（底盘箱体/顶板/角柱） -->
   <material name="body_white">
     <color rgba="${0xE8/255.0} ${0xEC/255.0} ${0xF1/255.0} 1.0"/>
   </material>
