@@ -1,4 +1,4 @@
-# nav_bot_description — 模型层（阶段 1）
+# nav_bot_description — 模型层
 
 机器人的"物理定义"，只描述几何、惯量、关节、传感器位姿，不含任何控制逻辑。
 当前版本：**四轮差速版（4WD）**，依据《轮式机器人建模规范》v1.5 + `config/robot_params.yaml` v2.0。
