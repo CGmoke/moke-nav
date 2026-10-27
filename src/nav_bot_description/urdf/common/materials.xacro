@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<!--
+  materials.xacro — 颜色材质定义
+  数据来源：robot_params.yaml -> robot.color_scheme（机身配色规范）
+  规范稿材料库（参考密度）：6061-T6 2700 / 7075 2810 / 尼龙+PU 1150 / PC 1200 kg/m^3
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- 机身主色 #E8ECF1（顶板/外壳） -->
+  <material name="body_white">
+    <color rgba="${0xE8/255.0} ${0xEC/255.0} ${0xF1/255.0} 1.0"/>
+  </material>
+
+  <!-- 底盘深灰 #2A3442 -->
+  <material name="chassis_dark">
+    <color rgba="${0x2A/255.0} ${0x34/255.0} ${0x42/255.0} 1.0"/>
+  </material>
+
+  <!-- 点缀琥珀 #FFB300（机械臂基座/警示） -->
+  <material name="accent_amber">
+    <color rgba="${0xFF/255.0} ${0xB3/255.0} ${0x00/255.0} 1.0"/>
+  </material>
+
+  <!-- 轮胎深黑 #1B1F26 -->
+  <material name="tire_black">
+    <color rgba="${0x1B/255.0} ${0x1F/255.0} ${0x26/255.0} 1.0"/>
+  </material>
+
+  <!-- 传感器外壳 #223045 -->
+  <material name="sensor_navy">
+    <color rgba="${0x22/255.0} ${0x30/255.0} ${0x45/255.0} 1.0"/>
+  </material>
+
+  <!-- 深度相机 #FF6B35 -->
+  <material name="depth_cam_orange">
+    <color rgba="${0xFF/255.0} ${0x6B/255.0} ${0x35/255.0} 1.0"/>
+  </material>
+
+  <!-- RGB 摄像头 #5A6B82 -->
+  <material name="camera_gray">
+    <color rgba="${0x5A/255.0} ${0x6B/255.0} ${0x82/255.0} 1.0"/>
+  </material>
+
+  <!-- 前脸灯带点缀 #22D3EE（青色，纯视觉件） -->
+  <material name="accent_cyan">
+    <color rgba="${0x22/255.0} ${0xD3/255.0} ${0xEE/255.0} 1.0"/>
+  </material>
+
+  <!-- 传感器玻璃窗 #141B26（深蓝黑镜面，深度相机隐藏式视窗） -->
+  <material name="lens_dark">
+    <color rgba="${0x14/255.0} ${0x1B/255.0} ${0x26/255.0} 1.0"/>
+  </material>
+
+</robot>

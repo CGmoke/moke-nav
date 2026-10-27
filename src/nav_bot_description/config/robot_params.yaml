@@ -1,0 +1,157 @@
+# ============================================================
+# 轮式机器人 URDF/Xacro 参数表 v2.0（四轮差速版）
+# 依据《轮式机器人建模规范》设计稿 (740874025112361) v1.5 生成
+# 变更：双驱中置 + 四万向轮 → 四轮独立驱动（4WD 差速）
+# 用法：xacro 中读取，或转 <xacro:property name="..." value="..."/>
+# 单位：长度 m，质量 kg，角度 rad（注释内 mm / kg 便于加工）
+# 坐标系：REP-103（x 前 / y 左 / z 上）
+# ============================================================
+
+robot:
+  name: wheeled_base_4wd_v2
+  drive_type: "4wd_differential"
+  total_mass_kg: 16.3        # 不含机械臂；含线缆紧固件 ≈ 17.0
+  payload_rating_kg: 5.0     # 机械臂 + 末端负载
+  color_scheme:
+    body:      "#E8ECF1"     # 机身主色
+    chassis:   "#2A3442"     # 底盘深灰
+    accent:    "#FFB300"     # 点缀琥珀（机械臂基座 / 警示）
+    tire:      "#1B1F26"     # 轮胎深黑
+    sensor:    "#223045"     # 传感器外壳
+
+# ------------------------------------------------------------
+# 运动学基准（基准单位 R = 0.10 m）
+# ------------------------------------------------------------
+kinematics:
+  base_unit_radius: 0.10     # R = 轮半径
+  wheel_radius: 0.10         # Ø200 mm
+  wheel_width: 0.060         # 轮宽 60 mm
+  track_width: 0.48          # 轮距 → y = ±0.24
+  wheelbase: 0.52            # 轴距 → x = ±0.26
+  wheel_z: 0.10              # 轮心高 = R（贴地）
+  ground_clearance: 0.06     # 底盘离地间隙
+  wheel_positions:           # 四轮安装点 [x, y]（z = wheel_z）
+    lf: [ 0.26,  0.24]
+    rf: [ 0.26, -0.24]
+    lb: [-0.26,  0.24]
+    rb: [-0.26, -0.24]
+  max_linear_vel: 0.8        # m/s（350 rpm × 2πR / 60）
+  max_angular_vel: 1.5       # rad/s（v / 半轮距）
+  min_turn_radius: 0.0       # 原地转向（差速）
+
+# ------------------------------------------------------------
+# Link 参数
+# inertial 为盒/圆柱/球近似，Gazebo 够用；真机出图后用 CAD 值替换
+# ------------------------------------------------------------
+links:
+  base_link:                 # 底盘框架 + 4 电机 + 轮轴 + 计算单元（惯量合并）
+    size: [0.420, 0.500, 0.120]      # L×W×H
+    mass: 9.10               # 4.2 框架 + 3.4 电机×4 + 0.6 轮轴 + 0.9 计算
+    material: "aluminum_6061_T6_sheet_t2"
+    color: "${robot.color_scheme.chassis}"
+    inertial_hint: box       # 420×500×120，质心 z ≈ 0.06
+
+  wheel_lf_link:             # 四轮同规格：lf / rf / lb / rb
+    size: {radius: 0.10, width: 0.060}
+    mass: 0.65
+    material: "nylon_hub_pu_tread"
+    color: "${robot.color_scheme.tire}"
+    inertial_hint: cylinder_about_y
+    contact: {mu: 0.9, mu2: 0.9}     # 驱动轮需高摩擦
+
+  platform_link:             # 平台顶板
+    size: [0.400, 0.320, 0.008]
+    mass: 0.90
+    material: "aluminum_6061_T6_plate_t8_anodized"
+    color: "${robot.color_scheme.body}"
+    z_offset: 0.24
+
+  arm_base_link:             # 机械臂安装基座
+    size: [0.160, 0.160, 0.012]
+    mass: 0.55
+    material: "aluminum_7075"
+    color: "${robot.color_scheme.accent}"
+    bolt_pattern: {count: 4, spec: M6, pitch_x: 0.25, pitch_y: 0.20, locked_to: "chassis_column"}
+    z_reserved: 0.45
+
+  lidar_link:
+    size: {radius: 0.045, height: 0.065}
+    mass: 0.19
+    material: "polycarbonate"
+    color: "${robot.color_scheme.sensor}"
+    mount: {parent: base_link, x: 0.21, y: 0.0, z: 0.28, roll: 0, pitch: 0, yaw: 0}
+
+  imu_link:
+    size: [0.036, 0.024, 0.010]
+    mass: 0.02
+    material: "aluminum_enclosure_pcb"
+    mount: {parent: base_link, x: 0.0, y: 0.0, z: 0.02}
+    note: "贴近轮轴、刚性固定；周边 100 mm 禁走动力线"
+
+  depth_camera_link:
+    size: [0.090, 0.025, 0.025]
+    mass: 0.07
+    material: "polycarbonate_glass"
+    color: "#FF6B35"
+    mount: {parent: base_link, x: 0.22, y: 0.0, z: 0.18, pitch: -0.262}   # -15°
+    optical_frame: depth_camera_optical        # REP-105
+
+  camera_link:
+    size: [0.038, 0.038, 0.038]
+    mass: 0.05
+    material: "abs"
+    color: "#5A6B82"
+    mount: {parent: platform_link, x: 0.19, y: 0.10, z: 0.30, pitch: -0.087}
+    note: "置于雷达扫描面之外 ≥ 50 mm"
+
+# ------------------------------------------------------------
+# 非 link 载荷（惯量并入 base_link）
+# ------------------------------------------------------------
+payloads:
+  battery:
+    size: [0.155, 0.095, 0.060]
+    mass: 2.8
+    material: "li_ion_6s22ah"
+    position: "底盘底面居中偏后"
+  axle_set:                  # 轮轴 + 轴承座 ×4（质量已并入 base）
+    size: {diameter: 0.012, length: 0.070}
+    mass_each: 0.15
+    material: "steel_45_bearing"
+
+# ------------------------------------------------------------
+# 关节汇总（10 个）
+# ------------------------------------------------------------
+joints:
+  left_front_wheel_joint:  {type: continuous, parent: base_link, child: wheel_lf_link, axis: [0, 1, 0], origin: [0.26, 0.24, 0.10]}
+  right_front_wheel_joint: {type: continuous, parent: base_link, child: wheel_rf_link, axis: [0, 1, 0], origin: [0.26, -0.24, 0.10]}
+  left_rear_wheel_joint:   {type: continuous, parent: base_link, child: wheel_lb_link, axis: [0, 1, 0], origin: [-0.26, 0.24, 0.10]}
+  right_rear_wheel_joint:  {type: continuous, parent: base_link, child: wheel_rb_link, axis: [0, 1, 0], origin: [-0.26, -0.24, 0.10]}
+  platform_joint:          {type: fixed, parent: base_link, child: platform_link, origin: [0, 0, 0.24]}
+  arm_mount_joint:         {type: fixed, parent: platform_link, child: arm_base_link, origin: [-0.10, 0, 0.004]}
+  lidar_mount_joint:       {type: fixed, parent: base_link, child: lidar_link, origin: [0.21, 0, 0.28]}
+  imu_mount_joint:         {type: fixed, parent: base_link, child: imu_link, origin: [0, 0, 0.02]}
+  depth_cam_joint:         {type: fixed, parent: base_link, child: depth_camera_link, origin: [0.22, 0, 0.18]}
+  cam_mount_joint:         {type: fixed, parent: platform_link, child: camera_link, origin: [0.19, 0.10, 0.30]}
+
+# ------------------------------------------------------------
+# 四轮差速实现要点（写 gazebo 插件 / 控制器时用）
+# ------------------------------------------------------------
+drive_config:
+  mode: "differential_4wd"
+  left_joints:  ["left_front_wheel_joint", "left_rear_wheel_joint"]
+  right_joints: ["right_front_wheel_joint", "right_rear_wheel_joint"]
+  note: "同侧两轮速度指令一致；轮地摩擦 mu ≥ 0.9，否则前后轮互顶会让里程计失真"
+
+materials:
+  aluminum_6061_T6:   {density: 2700, color: "#9AA5B1"}
+  aluminum_7075:      {density: 2810, color: "#B8C0C8"}
+  nylon_hub_pu_tread: {density: 1150, color: "#1B1F26"}
+  polycarbonate:      {density: 1200, color: "#223045"}
+  steel_45_bearing:   {density: 7850, color: "#6B7583"}
+
+validation:
+  - "check_urdf 通过；urdf_to_graphiz 为 11 links · 10 joints"
+  - "总质量核对：sum(mass) ≈ 16.3 kg"
+  - "四轮同时接地：轮心 z = R，底盘底面 z = 0.06"
+  - "Gazebo 空跑：直行不跑偏、原地旋转四轮同步"
+  - "里程计标定：wheel_separation = 0.48，wheel_radius = 0.10"

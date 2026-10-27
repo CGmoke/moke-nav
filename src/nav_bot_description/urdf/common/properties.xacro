@@ -1,0 +1,115 @@
+<?xml version="1.0"?>
+<!--
+  properties.xacro — 全局参数表
+  数据来源：robot_params.yaml v2.0（四轮差速版，对应《轮式机器人建模规范》v1.5）
+  单位约定：长度 m，质量 kg，角度 rad（注释内为 mm 便于加工）
+  坐标系：REP-103（x 前 / y 左 / z 上）
+  基准约定：base_link 原点在地面上（轮心 z = 轮半径 R），
+           即 base_link 同时承担 base_footprint 的角色，odom -> base_link 直接可用。
+  外形修正（延续 4WD 版外形审查结论）：
+    - 底盘宽 500 → 400 mm：轮距 y=±0.24 的四轮完全外露于车体两侧（420×500 稿
+      会把轮子埋进箱体，渲染不可用）；
+    - 底盘长取规范稿"底盘长 0.52 m"（= 轴距），四轮正好齐平车体四角，rover 造型；
+    - 摄像头高度取"雷达扫描面 + 50 mm"（离地 0.33 m），短支架 86 mm；
+    - 雷达收进顶板投影内 x=0.16，深度相机骑在底盘顶面前缘。
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ======================== 运动学基准（R = 0.10 m） ======================== -->
+  <xacro:property name="wheel_radius"      value="0.10"/>   <!-- 轮半径 Ø200 mm -->
+  <xacro:property name="wheel_width"       value="0.060"/>  <!-- 轮宽 60 mm -->
+  <xacro:property name="track_width"       value="0.48"/>   <!-- 轮距：左右轮 y = ±0.24 -->
+  <xacro:property name="wheel_y"           value="${track_width / 2.0}"/>
+  <xacro:property name="wheelbase"         value="0.52"/>   <!-- 轴距：前后轮 x = ±0.26 -->
+  <xacro:property name="wheel_x"           value="${wheelbase / 2.0}"/>
+  <xacro:property name="wheel_z"           value="${wheel_radius}"/>  <!-- 轮心高 = R，贴地 -->
+  <xacro:property name="ground_clearance"  value="0.06"/>   <!-- 底盘离地间隙 -->
+  <xacro:property name="max_linear_vel"    value="0.8"/>    <!-- m/s，350 rpm 估算 -->
+  <xacro:property name="max_angular_vel"   value="1.5"/>    <!-- rad/s（v / 半轮距） -->
+
+  <!-- ======================== base_link 底盘框架 ======================== -->
+  <!-- 520×400×120 mm；质量 = 框架 4.2 + 电机 3.4(×4) + 轮轴 0.6 + 计算单元 0.9 + 电池 2.8（并入） -->
+  <xacro:property name="chassis_x"         value="0.520"/>
+  <xacro:property name="chassis_y"         value="0.400"/>
+  <xacro:property name="chassis_z"         value="0.120"/>
+  <xacro:property name="chassis_mass"      value="9.10"/>
+  <xacro:property name="battery_mass"      value="2.8"/>    <!-- 电池不单独建模，惯量并入 -->
+  <xacro:property name="base_mass"         value="${chassis_mass + battery_mass}"/>
+  <!-- 箱体中心高：离地间隙 + 半高 = 0.12 m（箱底 z = 0.06） -->
+  <xacro:property name="chassis_center_z"  value="${ground_clearance + chassis_z / 2.0}"/>
+
+  <!-- 驱动轮轮轴（连接车体与外露轮子的短轴，仅视觉件） -->
+  <xacro:property name="axle_radius"       value="0.015"/>
+  <xacro:property name="axle_length"       value="0.030"/>
+
+  <!-- ======================== 驱动轮 ======================== -->
+  <xacro:property name="wheel_mass"        value="0.65"/>   <!-- 尼龙轮毂 + PU 胎，×4 同规格 -->
+
+  <!-- ======================== platform_link 平台顶板 ======================== -->
+  <!-- 400×320×8 mm，平台面离地 0.24 m -->
+  <xacro:property name="platform_x"        value="0.400"/>
+  <xacro:property name="platform_y"        value="0.320"/>
+  <xacro:property name="platform_z"        value="0.008"/>
+  <xacro:property name="platform_mass"     value="0.90"/>
+  <xacro:property name="platform_joint_z"  value="0.24"/>
+
+  <!-- 顶板支撑立柱 ×4（连接底盘顶面到顶板底面，消除顶板悬空感） -->
+  <xacro:property name="column_radius"     value="0.015"/>
+  <xacro:property name="column_xy"         value="${[0.16, 0.12]}"/>  <!-- 角柱 [x, y]，四角对称 -->
+  <xacro:property name="column_height"     value="${platform_joint_z - platform_z / 2.0 - (ground_clearance + chassis_z)}"/>
+
+  <!-- ======================== arm_base_link 机械臂安装基座 ======================== -->
+  <!-- 160×160×12 mm，7075 铝，4×M6 孔位 250×200 mm，Z 轴预留 0.45 m -->
+  <xacro:property name="arm_base_x"        value="0.160"/>
+  <xacro:property name="arm_base_y"        value="0.160"/>
+  <xacro:property name="arm_base_z"        value="0.012"/>
+  <xacro:property name="arm_base_mass"     value="0.55"/>
+  <xacro:property name="arm_mount_x"       value="-0.10"/>  <!-- 相对 platform_link -->
+  <xacro:property name="arm_mount_z"       value="0.004"/>  <!-- 顶板表面 -->
+
+  <!-- ======================== 传感器 ======================== -->
+  <!-- 激光雷达 Ø90×65 mm，0.19 kg，平台前部中线，扫描面离地 0.28 m -->
+  <xacro:property name="lidar_radius"      value="0.045"/>
+  <xacro:property name="lidar_height"      value="0.065"/>
+  <xacro:property name="lidar_mass"        value="0.19"/>
+  <xacro:property name="lidar_xyz"         value="${[0.16, 0.0, 0.28]}"/>  <!-- 收进顶板投影内，坐于顶板上方 -->
+
+  <!-- IMU 36×24×10 mm，0.02 kg，贴近轮轴、刚性固定，周边 100 mm 内禁止动力线 -->
+  <xacro:property name="imu_x"             value="0.036"/>
+  <xacro:property name="imu_y"             value="0.024"/>
+  <xacro:property name="imu_z"             value="0.010"/>
+  <xacro:property name="imu_mass"          value="0.02"/>
+  <xacro:property name="imu_xyz"           value="${[0.0, 0.0, 0.02]}"/>
+
+  <!-- 深度相机 90×25×25 mm，0.07 kg
+       外形 v2.4（隐藏式）：link 水平、完全藏进车头（y=0 正中），前脸唯一可见部分是
+       一块与面板齐平的深色玻璃窗；-15° 下俯角保留在 Gazebo 传感器 pose 中（外观零凸出）。
+       link 原点在面板内侧 1mm（x=0.259，面板 x=0.26） -->
+  <xacro:property name="depth_cam_x"       value="0.090"/>
+  <xacro:property name="depth_cam_y"       value="0.025"/>
+  <xacro:property name="depth_cam_z"       value="0.025"/>
+  <xacro:property name="depth_cam_mass"    value="0.07"/>
+  <xacro:property name="depth_cam_xyz"     value="${[0.259, 0.0, 0.15]}"/>  <!-- 相对 base_link，前面板 x=0.26 -->
+  <xacro:property name="depth_cam_pitch"   value="-0.262"/>  <!-- -15 deg，只作用于传感器 -->
+  <xacro:property name="depth_cam_win_y"   value="0.090"/>   <!-- 玻璃窗宽 -->
+  <xacro:property name="depth_cam_win_z"   value="0.030"/>   <!-- 玻璃窗高 -->
+
+  <!-- RGB 摄像头 38×38×38 mm，0.05 kg
+       外形 v2.2：取消长杆/短支架，平嵌进顶板前缘（模块化传感器，无外伸杆件），
+       光轴水平（原 -5° 下俯随嵌入取消）；立方体顶 0.259 < 雷达扫描面 0.28，不遮挡 -->
+  <xacro:property name="camera_size"       value="0.038"/>
+  <xacro:property name="camera_mass"       value="0.05"/>
+  <xacro:property name="camera_xyz"        value="${[0.195, 0.10, 0.0]}"/>  <!-- 相对 platform_link，骑前缘半嵌 -->
+  <xacro:property name="camera_pitch"      value="0.0"/>
+
+  <!-- 前脸灯带（纯视觉件，参考整机渲染风格）：底盘前面板细长条 -->
+  <xacro:property name="front_strip_x"     value="0.300"/>  <!-- 长 -->
+  <xacro:property name="front_strip_y"     value="0.008"/>  <!-- 厚 -->
+  <xacro:property name="front_strip_z"     value="0.012"/>  <!-- 高 -->
+  <xacro:property name="front_strip_cz"    value="0.09"/>   <!-- 离地高（避开嵌入的深度相机区 0.126–0.174） -->
+
+  <!-- 雷达底座法兰（视觉件，"圆盘 + 圆柱"造型） -->
+  <xacro:property name="lidar_flange_radius" value="0.060"/>
+  <xacro:property name="lidar_flange_z"    value="-0.031"/>  <!-- 相对 lidar_link（桥接顶板面与雷达筒底） -->
+
+</robot>

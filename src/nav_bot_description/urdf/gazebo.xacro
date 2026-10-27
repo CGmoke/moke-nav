@@ -1,0 +1,162 @@
+<?xml version="1.0"?>
+<!--
+  gazebo.xacro — <gazebo> 扩展（Gazebo Harmonic / gz-sim 8，经 ros_gz_sim + sdformat_urdf 转换）
+  本机无 Gazebo Classic / gazebo_ros_pkgs，禁止使用 libgazebo_ros_*.so 插件。
+  内容：DiffDrive 系统插件（4WD 四关节）、JointStatePublisher、gpu_lidar / IMU / RGBD / RGB 相机传感器。
+  注意：
+    - wheel_separation / wheel_radius 必须与 properties.xacro 同值，阶段 2 控制器抄同一组数。
+    - 驱动轮 mu=0.9（yaml v2.0 contact）；gz-sim 不转换 mu1/mu2 标签时，
+      摩擦覆写在阶段 2 的 world/SDF 中再确认（nav_bot_gazebo 包）。
+    - gz 话题到 ROS 的桥接（ros_gz_bridge）属阶段 2，此处仅声明传感器与系统插件。
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ==================== 差速驱动系统（4WD：同侧两轮速度一致） ==================== -->
+  <gazebo>
+    <plugin filename="gz-sim-diff-drive-system" name="gz::sim::systems::DiffDrive">
+      <left_joint>left_front_wheel_joint</left_joint>
+      <left_joint>left_rear_wheel_joint</left_joint>
+      <right_joint>right_front_wheel_joint</right_joint>
+      <right_joint>right_rear_wheel_joint</right_joint>
+      <wheel_separation>${track_width}</wheel_separation>
+      <wheel_radius>${wheel_radius}</wheel_radius>
+      <odom_publish_frequency>30</odom_publish_frequency>
+      <topic>cmd_vel</topic>
+      <odom_topic>odom</odom_topic>
+      <tf_topic>/tf</tf_topic>
+      <frame_id>odom</frame_id>
+      <child_frame_id>base_link</child_frame_id>
+      <min_linear_velocity>-${max_linear_vel}</min_linear_velocity>
+      <max_linear_velocity>${max_linear_vel}</max_linear_velocity>
+      <min_angular_velocity>-${max_angular_vel}</min_angular_velocity>
+      <max_angular_velocity>${max_angular_vel}</max_angular_velocity>
+    </plugin>
+  </gazebo>
+
+  <!-- ==================== 关节状态发布（驱动轮 continuous 关节需要） ==================== -->
+  <gazebo>
+    <plugin filename="gz-sim-joint-state-publisher-system" name="gz::sim::systems::JointStatePublisher">
+      <joint_name>left_front_wheel_joint</joint_name>
+      <joint_name>right_front_wheel_joint</joint_name>
+      <joint_name>left_rear_wheel_joint</joint_name>
+      <joint_name>right_rear_wheel_joint</joint_name>
+    </plugin>
+  </gazebo>
+
+  <!-- ==================== 驱动轮摩擦（规范 v2.0：mu ≥ 0.9） ==================== -->
+  <!-- 注：gz-sim 对 URDF mu1/mu2 的转换以 sdformat_urdf 支持为准，阶段 2 在 world/SDF 复核 -->
+  <gazebo reference="wheel_lf_link">
+    <mu1>0.9</mu1><mu2>0.9</mu2>
+    <kp>1000000.0</kp><kd>100.0</kd>
+  </gazebo>
+  <gazebo reference="wheel_rf_link">
+    <mu1>0.9</mu1><mu2>0.9</mu2>
+    <kp>1000000.0</kp><kd>100.0</kd>
+  </gazebo>
+  <gazebo reference="wheel_lb_link">
+    <mu1>0.9</mu1><mu2>0.9</mu2>
+    <kp>1000000.0</kp><kd>100.0</kd>
+  </gazebo>
+  <gazebo reference="wheel_rb_link">
+    <mu1>0.9</mu1><mu2>0.9</mu2>
+    <kp>1000000.0</kp><kd>100.0</kd>
+  </gazebo>
+
+  <!-- ==================== 激光雷达（gpu_lidar） ==================== -->
+  <gazebo reference="lidar_link">
+    <sensor name="lidar" type="gpu_lidar">
+      <pose>0 0 0 0 0 0</pose>
+      <topic>scan</topic>
+      <update_rate>10</update_rate>
+      <always_on>true</always_on>
+      <visualize>false</visualize>
+      <lidar>
+        <scan>
+          <horizontal>
+            <samples>720</samples>
+            <resolution>1</resolution>
+            <min_angle>-${pi}</min_angle>
+            <max_angle>${pi}</max_angle>
+          </horizontal>
+        </scan>
+        <range>
+          <min>0.15</min>
+          <max>12.0</max>
+          <resolution>0.01</resolution>
+        </range>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.01</stddev>
+        </noise>
+      </lidar>
+    </sensor>
+  </gazebo>
+
+  <!-- ==================== IMU ==================== -->
+  <gazebo reference="imu_link">
+    <sensor name="imu" type="imu">
+      <topic>imu/data</topic>
+      <update_rate>100</update_rate>
+      <always_on>true</always_on>
+      <imu>
+        <angular_velocity>
+          <x><noise type="gaussian"><mean>0.0</mean><stddev>0.0002</stddev></noise></x>
+          <y><noise type="gaussian"><mean>0.0</mean><stddev>0.0002</stddev></noise></y>
+          <z><noise type="gaussian"><mean>0.0</mean><stddev>0.0002</stddev></noise></z>
+        </angular_velocity>
+        <linear_acceleration>
+          <x><noise type="gaussian"><mean>0.0</mean><stddev>0.017</stddev></noise></x>
+          <y><noise type="gaussian"><mean>0.0</mean><stddev>0.017</stddev></noise></y>
+          <z><noise type="gaussian"><mean>0.0</mean><stddev>0.017</stddev></noise></z>
+        </linear_acceleration>
+      </imu>
+    </sensor>
+  </gazebo>
+
+  <!-- ==================== 深度相机（隐藏式，外形 v2.4） ==================== -->
+  <!-- 相机机身藏于车头内，前脸仅一块齐平玻璃窗。-15° 下俯角在传感器 pose 中实现；
+       pose x +5mm 把传感器原点推到面板外，避免虚拟相机被底盘前壁自身遮挡。 -->
+  <gazebo reference="depth_camera_link">
+    <sensor name="depth_camera" type="rgbd_camera">
+      <pose>0.005 0 0 0 ${depth_cam_pitch} 0</pose>
+      <topic>depth_camera</topic>
+      <update_rate>15</update_rate>
+      <always_on>true</always_on>
+      <camera>
+        <horizontal_fov>1.0297</horizontal_fov>  <!-- ~59° -->
+        <image>
+          <width>640</width>
+          <height>480</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.28</near>
+          <far>10.0</far>
+        </clip>
+      </camera>
+    </sensor>
+  </gazebo>
+
+  <!-- ==================== RGB 摄像头 ==================== -->
+  <gazebo reference="camera_link">
+    <sensor name="rgb_camera" type="camera">
+      <topic>camera/image</topic>
+      <update_rate>30</update_rate>
+      <always_on>true</always_on>
+      <camera>
+        <horizontal_fov>1.0472</horizontal_fov>  <!-- 60° -->
+        <image>
+          <width>640</width>
+          <height>480</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.05</near>
+          <far>20.0</far>
+        </clip>
+      </camera>
+    </sensor>
+  </gazebo>
+
+</robot>

@@ -1,0 +1,118 @@
+<?xml version="1.0"?>
+<!--
+  base.xacro — 车体：base_link（底盘框架）+ platform_link（顶板）+ arm_base_link（机械臂基座）
+  base_link 原点在地面上；电池/4 电机/轮轴/计算单元不单独建模，质量并入 base_link（11.9 kg）。
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- 顶板角柱视觉件（在 platform_link 坐标系中：柱底 = 底盘顶面，柱顶 = 顶板底面） -->
+  <xacro:macro name="platform_column" params="x y">
+    <visual>
+      <origin xyz="${x} ${y} ${-(platform_z / 2.0 + column_height / 2.0)}" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="${column_radius}" length="${column_height}"/>
+      </geometry>
+      <material name="chassis_dark"/>
+    </visual>
+  </xacro:macro>
+
+  <!-- ==================== base_link 底盘框架 520×400×120 mm ==================== -->
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 ${chassis_center_z}" rpy="0 0 0"/>
+      <geometry>
+        <box size="${chassis_x} ${chassis_y} ${chassis_z}"/>
+      </geometry>
+      <material name="chassis_dark"/>
+    </visual>
+    <!-- 前脸灯带：底盘前面板细长青色灯条（纯视觉件，参考整机渲染风格） -->
+    <visual>
+      <origin xyz="${chassis_x / 2.0} 0 ${front_strip_cz}" rpy="0 0 0"/>
+      <geometry>
+        <box size="${front_strip_y} ${front_strip_x} ${front_strip_z}"/>
+      </geometry>
+      <material name="accent_cyan"/>
+    </visual>
+    <collision>
+      <!-- 简化几何体：与 visual 相同的 box（禁止复用高精度 mesh） -->
+      <origin xyz="0 0 ${chassis_center_z}" rpy="0 0 0"/>
+      <geometry>
+        <box size="${chassis_x} ${chassis_y} ${chassis_z}"/>
+      </geometry>
+    </collision>
+    <!-- 惯量并入电池后按整箱近似，质心偏后（电池底面居中偏后，配重项） -->
+    <inertial>
+      <mass value="${base_mass}"/>
+      <origin xyz="-0.03 0 ${chassis_center_z}" rpy="0 0 0"/>
+      <inertia
+        ixx="${base_mass * (chassis_y*chassis_y + chassis_z*chassis_z) / 12.0}"
+        ixy="0.0" ixz="0.0"
+        iyy="${base_mass * (chassis_x*chassis_x + chassis_z*chassis_z) / 12.0}"
+        iyz="0.0"
+        izz="${base_mass * (chassis_x*chassis_x + chassis_y*chassis_y) / 12.0}"/>
+    </inertial>
+  </link>
+
+  <!-- ==================== platform_link 平台顶板 400×320×8 mm ==================== -->
+  <joint name="platform_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="platform_link"/>
+    <origin xyz="0 0 ${platform_joint_z}" rpy="0 0 0"/>
+  </joint>
+  <link name="platform_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="${platform_x} ${platform_y} ${platform_z}"/>
+      </geometry>
+      <material name="body_white"/>
+    </visual>
+    <!-- 四角支撑立柱：底盘顶面 -> 顶板底面（视觉件，消除顶板悬空感） -->
+    <xacro:platform_column x="${column_xy[0]}"  y="${column_xy[1]}"/>
+    <xacro:platform_column x="${column_xy[0]}"  y="${-column_xy[1]}"/>
+    <xacro:platform_column x="${-column_xy[0]}" y="${column_xy[1]}"/>
+    <xacro:platform_column x="${-column_xy[0]}" y="${-column_xy[1]}"/>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="${platform_x} ${platform_y} ${platform_z}"/>
+      </geometry>
+    </collision>
+    <xacro:box_inertial mass="${platform_mass}" x="${platform_x}" y="${platform_y}" z="${platform_z}"/>
+  </link>
+
+  <!-- ==================== arm_base_link 机械臂安装基座（预留） ==================== -->
+  <!-- 4×M6 孔位 250×200 mm，锁附底盘立柱；Z 轴预留 0.45 m（含回转） -->
+  <joint name="arm_mount_joint" type="fixed">
+    <parent link="platform_link"/>
+    <child link="arm_base_link"/>
+    <origin xyz="${arm_mount_x} 0 ${arm_mount_z}" rpy="0 0 0"/>
+  </joint>
+  <link name="arm_base_link">
+    <visual>
+      <!-- 板上表面与关节面齐平：中心抬高半厚 -->
+      <origin xyz="0 0 ${arm_base_z / 2.0}" rpy="0 0 0"/>
+      <geometry>
+        <box size="${arm_base_x} ${arm_base_y} ${arm_base_z}"/>
+      </geometry>
+      <material name="accent_amber"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 ${arm_base_z / 2.0}" rpy="0 0 0"/>
+      <geometry>
+        <box size="${arm_base_x} ${arm_base_y} ${arm_base_z}"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="${arm_base_mass}"/>
+      <origin xyz="0 0 ${arm_base_z / 2.0}" rpy="0 0 0"/>
+      <inertia
+        ixx="${arm_base_mass * (arm_base_y*arm_base_y + arm_base_z*arm_base_z) / 12.0}"
+        ixy="0.0" ixz="0.0"
+        iyy="${arm_base_mass * (arm_base_x*arm_base_x + arm_base_z*arm_base_z) / 12.0}"
+        iyz="0.0"
+        izz="${arm_base_mass * (arm_base_x*arm_base_x + arm_base_y*arm_base_y) / 12.0}"/>
+    </inertial>
+  </link>
+
+</robot>

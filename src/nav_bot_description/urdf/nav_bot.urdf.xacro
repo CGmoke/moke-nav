@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<!--
+  nav_bot.urdf.xacro — 顶层装配文件
+  依据《轮式机器人建模规范》v1.5（四轮差速版） + robot_params.yaml v2.0
+  拓扑：11 links / 10 joints
+    base_link（根，原点位于地面）
+    ├── wheel_lf/rf/lb/rb_link             continuous ×4（4WD 差速，同侧同速）
+    ├── platform_link                      fixed
+    │   ├── arm_base_link                  fixed（机械臂预留基座）
+    │   └── camera_link                    fixed（RGB 摄像头 + 短支架）
+    ├── lidar_link                         fixed（平台前部，扫描面离地 0.28 m）
+    ├── imu_link                           fixed（底盘中心贴轮轴）
+    └── depth_camera_link                  fixed（前面板俯仰 -15°）
+  用法：
+    xacro src/nav_bot_description/urdf/nav_bot.urdf.xacro > nav_bot.urdf
+    check_urdf nav_bot.urdf
+-->
+<robot name="nav_bot" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- 参数与公共宏 -->
+  <xacro:include filename="$(find nav_bot_description)/urdf/common/properties.xacro"/>
+  <xacro:include filename="$(find nav_bot_description)/urdf/common/inertia.xacro"/>
+  <xacro:include filename="$(find nav_bot_description)/urdf/common/materials.xacro"/>
+
+  <!-- 车体 / 轮系 / 传感器 -->
+  <xacro:include filename="$(find nav_bot_description)/urdf/base.xacro"/>
+  <xacro:include filename="$(find nav_bot_description)/urdf/wheels.xacro"/>
+  <xacro:include filename="$(find nav_bot_description)/urdf/sensors.xacro"/>
+
+  <!-- Gazebo 扩展（Gazebo Harmonic / gz-sim，RViz 忽略） -->
+  <xacro:include filename="$(find nav_bot_description)/urdf/gazebo.xacro"/>
+
+</robot>

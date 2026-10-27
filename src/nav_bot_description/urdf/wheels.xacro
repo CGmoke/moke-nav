@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<!--
+  wheels.xacro — 四轮独立驱动（4WD 差速）：lf / rf / lb / rb，全部 continuous 绕 y 轴
+  规范（robot_params.yaml v2.0）：轮安装点 x=±0.26（轴距 0.52）、y=±0.24（轮距 0.48）、
+  z=R=0.10；同侧两轮速度指令一致；轮地摩擦 mu ≥ 0.9（见 gazebo.xacro）。
+  视觉件含朝向车体的短轮轴，避免轮子与车身之间出现悬空缝隙。
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ==================== 驱动轮宏 ==================== -->
+  <!-- name: lf / rf / lb / rb；x: 安装点纵向；y_sign: +1 左 / -1 右。
+       左右轮 axis 均为 +y（REP-103 统一约定，差速插件按关节名区分左右）。 -->
+  <xacro:macro name="drive_wheel" params="name x y_sign joint_name">
+    <joint name="${joint_name}" type="continuous">
+      <parent link="base_link"/>
+      <child link="wheel_${name}_link"/>
+      <origin xyz="${x} ${y_sign * wheel_y} ${wheel_z}" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+      <limit effort="10.0" velocity="${2.0 * pi * 350.0 / 60.0}"/>  <!-- 350 rpm -->
+    </joint>
+    <link name="wheel_${name}_link">
+      <visual>
+        <!-- URDF 圆柱轴沿 z，绕 x 转 90° 使轮轴对齐 y -->
+        <origin xyz="0 0 0" rpy="${pi/2.0} 0 0"/>
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+        </geometry>
+        <material name="tire_black"/>
+      </visual>
+      <!-- 轮轴：朝车体一侧伸出的短轴（视觉件） -->
+      <visual>
+        <origin xyz="0 ${-y_sign * axle_length / 2.0} 0" rpy="${pi/2.0} 0 0"/>
+        <geometry>
+          <cylinder radius="${axle_radius}" length="${axle_length}"/>
+        </geometry>
+        <material name="sensor_navy"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="${pi/2.0} 0 0"/>
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+        </geometry>
+      </collision>
+      <!-- 惯量主轴已对齐 link y 轴，无需再转 -->
+      <xacro:wheel_inertial mass="${wheel_mass}" radius="${wheel_radius}" width="${wheel_width}"/>
+    </link>
+  </xacro:macro>
+
+  <xacro:drive_wheel name="lf" x="${wheel_x}"  y_sign="1"  joint_name="left_front_wheel_joint"/>
+  <xacro:drive_wheel name="rf" x="${wheel_x}"  y_sign="-1" joint_name="right_front_wheel_joint"/>
+  <xacro:drive_wheel name="lb" x="${-wheel_x}" y_sign="1"  joint_name="left_rear_wheel_joint"/>
+  <xacro:drive_wheel name="rb" x="${-wheel_x}" y_sign="-1" joint_name="right_rear_wheel_joint"/>
+
+</robot>
