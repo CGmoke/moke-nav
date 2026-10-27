@@ -1,0 +1,29 @@
+# colcon 构建产物
+build/
+install/
+log/
+
+# ros2 bag 数据体积大，不入库，仅保留目录
+bags/*
+!bags/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# 临时调试产物
+.tmp/
+
+# 导出文件（图片 / 报告）
+outputs/
+
+# 编辑器与系统
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# 工具缓存
+.Trash-0/
+.workbuddy/
