@@ -15,8 +15,8 @@
 -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-  <!-- ======================== 运动学基准（R = 0.10 m） ======================== -->
-  <xacro:property name="wheel_radius"      value="0.10"/>   <!-- 轮半径 Ø200 mm -->
+  <!-- ======================== 运动学基准（R = 0.09 m） ======================== -->
+  <xacro:property name="wheel_radius"      value="0.09"/>   <!-- 轮半径 Ø180 mm -->
   <xacro:property name="wheel_width"       value="0.060"/>  <!-- 轮宽 60 mm -->
   <xacro:property name="track_width"       value="0.48"/>   <!-- 轮距：左右轮 y = ±0.24 -->
   <xacro:property name="wheel_y"           value="${track_width / 2.0}"/>
@@ -79,7 +79,7 @@
   <xacro:property name="imu_y"             value="0.024"/>
   <xacro:property name="imu_z"             value="0.010"/>
   <xacro:property name="imu_mass"          value="0.02"/>
-  <xacro:property name="imu_xyz"           value="${[0.0, 0.0, 0.02]}"/>
+  <xacro:property name="imu_xyz"           value="${[0.0, 0.0, 0.06]}"/>
 
   <!-- 深度相机 90×25×25 mm，0.07 kg
        外形 v2.4（隐藏式）：link 水平、完全藏进车头（y=0 正中），前脸唯一可见部分是

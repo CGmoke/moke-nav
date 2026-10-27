@@ -2,7 +2,7 @@
 <!--
   wheels.xacro — 四轮独立驱动（4WD 差速）：lf / rf / lb / rb，全部 continuous 绕 y 轴
   规范（robot_params.yaml v2.0）：轮安装点 x=±0.26（轴距 0.52）、y=±0.24（轮距 0.48）、
-  z=R=0.10；同侧两轮速度指令一致；轮地摩擦 mu ≥ 0.9（见 gazebo.xacro）。
+  z=R=0.09；同侧两轮速度指令一致；轮地摩擦 mu ≥ 0.9（见 gazebo.xacro）。
   视觉件含朝向车体的短轮轴，避免轮子与车身之间出现悬空缝隙。
 -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">

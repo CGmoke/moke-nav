@@ -7,10 +7,10 @@
     ├── wheel_lf/rf/lb/rb_link             continuous ×4（4WD 差速，同侧同速）
     ├── platform_link                      fixed
     │   ├── arm_base_link                  fixed（机械臂预留基座）
-    │   └── camera_link                    fixed（RGB 摄像头 + 短支架）
+    │   └── camera_link                    fixed（RGB 摄像头，平嵌顶板前缘）
     ├── lidar_link                         fixed（平台前部，扫描面离地 0.28 m）
     ├── imu_link                           fixed（底盘中心贴轮轴）
-    └── depth_camera_link                  fixed（前面板俯仰 -15°）
+    └── depth_camera_link                  fixed（前面板隐藏式，-15° 下俯在 Gazebo 传感器 pose）
   用法：
     xacro src/nav_bot_description/urdf/nav_bot.urdf.xacro > nav_bot.urdf
     check_urdf nav_bot.urdf
