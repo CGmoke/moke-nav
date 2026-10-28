@@ -18,6 +18,9 @@ __pycache__/
 # 导出文件（图片 / 报告）
 outputs/
 
+# 本地文档（不入库）
+docs/
+
 # 编辑器与系统
 .vscode/
 .idea/

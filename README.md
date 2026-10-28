@@ -10,13 +10,13 @@
 
 ## 环境
 
-| 组件 | 版本 |
-|---|---|
-| ROS 2 | Jazzy（`/opt/ros/jazzy`） |
-| Nav2 | 34 包，默认 MPPI + NavFn |
+| 组件   | 版本                                                    |
+| ------ | ------------------------------------------------------- |
+| ROS 2  | Jazzy（`/opt/ros/jazzy`）                             |
+| Nav2   | 34 包，默认 MPPI + NavFn                                |
 | Gazebo | Harmonic（gz-sim 8.15，经 `ros-jazzy-gz-sim-vendor`） |
-| 桥接 | ros_gz 1.0.24 |
-| SLAM | slam_toolbox（主）/ cartographer_ros（对比） |
+| 桥接   | ros_gz 1.0.24                                           |
+| SLAM   | slam_toolbox（主）/ cartographer_ros（对比）            |
 
 > Jazzy 不支持 Gazebo Classic，所有 `gazebo_ros` 教程不适用。
 
@@ -79,7 +79,7 @@ colcon build --symlink-install --cmake-args -DPython3_EXECUTABLE=/usr/bin/python
 
 ## 阶段进度
 
-- [ ] **阶段 1** 建模：`check_urdf` 通过、TF 树完整、轮子转向正确
+- [X] **阶段 1** 建模：`check_urdf` 通过、TF 树完整、轮子转向正确
 - [ ] **阶段 2** 仿真：键盘遥控可行驶，`/scan` `/odom` `/tf` `/clock` 正常
 - [ ] **阶段 3** 建图：10×10 m 地图闭合、无重影
 - [ ] **阶段 4** 导航：AMCL 收敛 < 3 s，10 目标 ≥ 8 成功
