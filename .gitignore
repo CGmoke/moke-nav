@@ -23,6 +23,7 @@ outputs/
 .idea/
 *.swp
 .DS_Store
+.colcon/*
 
 # 工具缓存
 .Trash-0/
