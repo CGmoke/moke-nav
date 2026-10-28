@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">
+  <asset>
+    <contributor><authoring_tool>nav_bot gen_meshes.py</authoring_tool></contributor>
+    <created>2026-10-28T00:00:00</created>
+    <modified>2026-10-28T00:00:00</modified>
+    <unit name="meter" meter="1"/>
+    <up_axis>Z_UP</up_axis>
+  </asset>
+  <library_effects><effect id="fx0"><profile_COMMON><technique sid="common"><lambert><diffuse><color sid="diffuse">0.1333 0.1882 0.2706 1</color></diffuse></lambert></technique></profile_COMMON></effect></library_effects>
+  <library_materials><material id="mat0" name="mat0"><instance_effect url="#fx0"/></material></library_materials>
+  <library_geometries>
+    <geometry id="geom" name="mesh">
+      <mesh>
+        <source id="pos">
+          <float_array id="pos-arr" count="108">-0.018000 -0.012000 -0.005000 -0.018000 -0.012000 0.005000 -0.018000 0.012000 0.005000 -0.018000 -0.012000 -0.005000 -0.018000 0.012000 0.005000 -0.018000 0.012000 -0.005000 0.018000 -0.012000 -0.005000 0.018000 0.012000 -0.005000 0.018000 0.012000 0.005000 0.018000 -0.012000 -0.005000 0.018000 0.012000 0.005000 0.018000 -0.012000 0.005000 -0.018000 -0.012000 -0.005000 0.018000 -0.012000 -0.005000 0.018000 -0.012000 0.005000 -0.018000 -0.012000 -0.005000 0.018000 -0.012000 0.005000 -0.018000 -0.012000 0.005000 -0.018000 0.012000 -0.005000 -0.018000 0.012000 0.005000 0.018000 0.012000 0.005000 -0.018000 0.012000 -0.005000 0.018000 0.012000 0.005000 0.018000 0.012000 -0.005000 -0.018000 -0.012000 -0.005000 -0.018000 0.012000 -0.005000 0.018000 0.012000 -0.005000 -0.018000 -0.012000 -0.005000 0.018000 0.012000 -0.005000 0.018000 -0.012000 -0.005000 -0.018000 -0.012000 0.005000 0.018000 -0.012000 0.005000 0.018000 0.012000 0.005000 -0.018000 -0.012000 0.005000 0.018000 0.012000 0.005000 -0.018000 0.012000 0.005000</float_array>
+          <technique_common>
+            <accessor source="#pos-arr" count="36" stride="3">
+              <param name="X" type="float"/><param name="Y" type="float"/><param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="vtx"><input semantic="POSITION" source="#pos"/></vertices>
+        <triangles material="sym0" count="12"><input semantic="VERTEX" source="#vtx" offset="0"/><p>0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35</p></triangles>
+      </mesh>
+    </geometry>
+  </library_geometries>
+  <library_visual_scenes>
+    <visual_scene id="Scene" name="scene">
+      <node id="node" name="mesh">
+        <instance_geometry url="#geom">
+          <bind_material><technique_common><instance_material symbol="sym0" target="#mat0"/></technique_common></bind_material>
+        </instance_geometry>
+      </node>
+    </visual_scene>
+  </library_visual_scenes>
+  <scene><instance_visual_scene url="#Scene"/></scene>
+</COLLADA>

@@ -19,21 +19,13 @@
       <limit effort="10.0" velocity="${2.0 * pi * 350.0 / 60.0}"/>  <!-- 350 rpm -->
     </joint>
     <link name="wheel_${name}_link">
+      <!-- 外观 mesh：轮胎 + 朝车体侧的短轮轴（已在 mesh 内合并，四轮共用） -->
       <visual>
-        <!-- URDF 圆柱轴沿 z，绕 x 转 90° 使轮轴对齐 y -->
-        <origin xyz="0 0 0" rpy="${pi/2.0} 0 0"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+          <mesh filename="package://nav_bot_description/meshes/wheel.dae"/>
         </geometry>
         <material name="tire_black"/>
-      </visual>
-      <!-- 轮轴：朝车体一侧伸出的短轴（视觉件） -->
-      <visual>
-        <origin xyz="0 ${-y_sign * axle_length / 2.0} 0" rpy="${pi/2.0} 0 0"/>
-        <geometry>
-          <cylinder radius="${axle_radius}" length="${axle_length}"/>
-        </geometry>
-        <material name="sensor_navy"/>
       </visual>
       <collision>
         <origin xyz="0 0 0" rpy="${pi/2.0} 0 0"/>

@@ -18,18 +18,11 @@
     <origin xyz="${lidar_xyz[0]} ${lidar_xyz[1]} ${lidar_xyz[2]}" rpy="0 0 0"/>
   </joint>
   <link name="lidar_link">
+    <!-- 外观 mesh：雷达筒 + 底座法兰（已在 mesh 内合并） -->
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="${lidar_radius}" length="${lidar_height}"/>
-      </geometry>
-      <material name="sensor_navy"/>
-    </visual>
-    <!-- 底座法兰：桥接顶板面与雷达筒底，无外伸杆件 -->
-    <visual>
-      <origin xyz="0 0 ${lidar_flange_z}" rpy="0 0 0"/>
-      <geometry>
-        <cylinder radius="${lidar_flange_radius}" length="0.012"/>
+        <mesh filename="package://nav_bot_description/meshes/lidar_link.dae"/>
       </geometry>
       <material name="sensor_navy"/>
     </visual>
@@ -52,7 +45,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="${imu_x} ${imu_y} ${imu_z}"/>
+        <mesh filename="package://nav_bot_description/meshes/imu_link.dae"/>
       </geometry>
       <material name="sensor_navy"/>
     </visual>
@@ -74,11 +67,11 @@
     <origin xyz="${depth_cam_xyz[0]} ${depth_cam_xyz[1]} ${depth_cam_xyz[2]}" rpy="0 0 0"/>
   </joint>
   <link name="depth_camera_link">
-    <!-- 玻璃视窗：与前面板齐平的深色镜面小窗（唯一可见部分） -->
+    <!-- 外观 mesh：前脸齐平玻璃视窗（唯一可见部分，机身藏于车头内无外观） -->
     <visual>
-      <origin xyz="0.0015 0 0" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.003 ${depth_cam_win_y} ${depth_cam_win_z}"/>
+        <mesh filename="package://nav_bot_description/meshes/depth_camera_link.dae"/>
       </geometry>
       <material name="lens_dark"/>
     </visual>
@@ -109,20 +102,13 @@
             rpy="0 ${camera_pitch} 0"/>
   </joint>
   <link name="camera_link">
+    <!-- 外观 mesh：相机方块 + 前侧镜头圆片（已在 mesh 内合并） -->
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="${camera_size} ${camera_size} ${camera_size}"/>
+        <mesh filename="package://nav_bot_description/meshes/camera_link.dae"/>
       </geometry>
       <material name="camera_gray"/>
-    </visual>
-    <!-- 镜头面：前侧小圆片，增加辨识度（纯视觉件） -->
-    <visual>
-      <origin xyz="${camera_size / 2.0 + 0.001} 0 0" rpy="0 ${pi/2.0} 0"/>
-      <geometry>
-        <cylinder radius="${0.55 * camera_size / 2.0}" length="0.002"/>
-      </geometry>
-      <material name="tire_black"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>

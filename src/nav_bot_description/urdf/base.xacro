@@ -5,33 +5,18 @@
 -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-  <!-- 顶板角柱视觉件（在 platform_link 坐标系中：柱底 = 底盘顶面，柱顶 = 顶板底面） -->
-  <xacro:macro name="platform_column" params="x y">
-    <visual>
-      <origin xyz="${x} ${y} ${-(platform_z / 2.0 + column_height / 2.0)}" rpy="0 0 0"/>
-      <geometry>
-        <cylinder radius="${column_radius}" length="${column_height}"/>
-      </geometry>
-      <material name="body_white"/>
-    </visual>
-  </xacro:macro>
+  <!-- 外观网格（外观 v2.5）：visual 引用 meshes/ 下的 .dae（自带材质色）；
+       碰撞体保持简化几何体（规范要求，禁止复用外观 mesh）。 -->
 
   <!-- ==================== base_link 底盘框架 520×400×120 mm ==================== -->
   <link name="base_link">
+    <!-- 外观 mesh：底盘箱体 + 前脸青色灯带（已在 mesh 内合并，坐标以 link 原点为基准） -->
     <visual>
-      <origin xyz="0 0 ${chassis_center_z}" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="${chassis_x} ${chassis_y} ${chassis_z}"/>
+        <mesh filename="package://nav_bot_description/meshes/base_link.dae"/>
       </geometry>
-      <material name="body_white"/>
-    </visual>
-    <!-- 前脸灯带：底盘前面板细长青色灯条（纯视觉件，参考整机渲染风格） -->
-    <visual>
-      <origin xyz="${chassis_x / 2.0} 0 ${front_strip_cz}" rpy="0 0 0"/>
-      <geometry>
-        <box size="${front_strip_y} ${front_strip_x} ${front_strip_z}"/>
-      </geometry>
-      <material name="accent_cyan"/>
+      <material name="chassis_dark"/>
     </visual>
     <collision>
       <!-- 简化几何体：与 visual 相同的 box（禁止复用高精度 mesh） -->
@@ -60,18 +45,14 @@
     <origin xyz="0 0 ${platform_joint_z}" rpy="0 0 0"/>
   </joint>
   <link name="platform_link">
+    <!-- 外观 mesh：顶板 + 四根支撑角柱（已在 mesh 内合并） -->
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="${platform_x} ${platform_y} ${platform_z}"/>
+        <mesh filename="package://nav_bot_description/meshes/platform_link.dae"/>
       </geometry>
       <material name="body_white"/>
     </visual>
-    <!-- 四角支撑立柱：底盘顶面 -> 顶板底面（视觉件，消除顶板悬空感） -->
-    <xacro:platform_column x="${column_xy[0]}"  y="${column_xy[1]}"/>
-    <xacro:platform_column x="${column_xy[0]}"  y="${-column_xy[1]}"/>
-    <xacro:platform_column x="${-column_xy[0]}" y="${column_xy[1]}"/>
-    <xacro:platform_column x="${-column_xy[0]}" y="${-column_xy[1]}"/>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
@@ -90,10 +71,9 @@
   </joint>
   <link name="arm_base_link">
     <visual>
-      <!-- 板上表面与关节面齐平：中心抬高半厚 -->
-      <origin xyz="0 0 ${arm_base_z / 2.0}" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="${arm_base_x} ${arm_base_y} ${arm_base_z}"/>
+        <mesh filename="package://nav_bot_description/meshes/arm_base_link.dae"/>
       </geometry>
       <material name="accent_amber"/>
     </visual>
