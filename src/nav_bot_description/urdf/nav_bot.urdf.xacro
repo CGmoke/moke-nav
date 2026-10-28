@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <!--
   nav_bot.urdf.xacro — 顶层装配文件
-  依据《轮式机器人建模规范》v1.5（四轮差速版） + robot_params.yaml v2.0
+  依据《轮式机器人建模规范》+ robot_params.yaml v2.0
   拓扑：11 links / 10 joints
     base_link（根，原点位于地面）
     ├── wheel_lf/rf/lb/rb_link             continuous ×4（4WD 差速，同侧同速）

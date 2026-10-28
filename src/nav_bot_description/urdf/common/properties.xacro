@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <!--
   properties.xacro — 全局参数表
-  数据来源：robot_params.yaml v2.0（四轮差速版，对应《轮式机器人建模规范》v1.5）
+  数据来源：robot_params.yaml v2.0
   单位约定：长度 m，质量 kg，角度 rad（注释内为 mm 便于加工）
   坐标系：REP-103（x 前 / y 左 / z 上）
   基准约定：base_link 原点在地面上（轮心 z = 轮半径 R），

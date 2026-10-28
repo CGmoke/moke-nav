@@ -1,14 +1,4 @@
 <?xml version="1.0"?>
-<!--
-  gazebo.xacro — <gazebo> 扩展（Gazebo Harmonic / gz-sim 8，经 ros_gz_sim + sdformat_urdf 转换）
-  本机无 Gazebo Classic / gazebo_ros_pkgs，禁止使用 libgazebo_ros_*.so 插件。
-  内容：DiffDrive 系统插件（4WD 四关节）、JointStatePublisher、gpu_lidar / IMU / RGBD / RGB 相机传感器。
-  注意：
-    - wheel_separation / wheel_radius 必须与 properties.xacro 同值，阶段 2 控制器抄同一组数。
-    - 驱动轮 mu=0.9（yaml v2.0 contact）；gz-sim 不转换 mu1/mu2 标签时，
-      摩擦覆写在阶段 2 的 world/SDF 中再确认（nav_bot_gazebo 包）。
-    - gz 话题到 ROS 的桥接（ros_gz_bridge）属阶段 2，此处仅声明传感器与系统插件。
--->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <!-- ==================== 差速驱动系统（4WD：同侧两轮速度一致） ==================== -->
