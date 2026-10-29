@@ -31,9 +31,13 @@ def generate_launch_description():
     gui = LaunchConfiguration('gui')
     verbose = LaunchConfiguration('verbose')
 
-    # model:// 解析依赖此变量：包含 models 与 worlds，并保留调用者原有的搜索路径
+    # model:// 解析依赖此变量：包含 models 与 worlds，并保留调用者原有的搜索路径。
+    # 机器人 visual 用 package://nav_bot_description/meshes/*.dae，sdformat_urdf 会
+    # 改写成 model://nav_bot_description/...，所以还必须加上该包的 share 目录
+    # （即包目录的上一级），否则 spawn 时报 Unable to find file。
+    desc_share = os.path.dirname(get_package_share_directory('nav_bot_description'))
     existing = os.environ.get('GZ_SIM_RESOURCE_PATH', '')
-    resource_path = models_dir + os.pathsep + worlds_dir
+    resource_path = os.pathsep.join([desc_share, models_dir, worlds_dir])
     if existing:
         resource_path += os.pathsep + existing
 
