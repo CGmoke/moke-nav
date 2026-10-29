@@ -20,6 +20,7 @@ outputs/
 
 # 本地文档（不入库）
 docs/
+experiments/
 
 # 编辑器与系统
 .vscode/

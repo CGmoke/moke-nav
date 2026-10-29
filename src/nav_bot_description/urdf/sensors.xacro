@@ -22,7 +22,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://nav_bot_description/meshes/lidar_link.dae"/>
+        <mesh filename="package://nav_bot_description/meshes/lidar_link.stl"/>
       </geometry>
       <material name="sensor_navy"/>
     </visual>
@@ -45,7 +45,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://nav_bot_description/meshes/imu_link.dae"/>
+        <mesh filename="package://nav_bot_description/meshes/imu_link.stl"/>
       </geometry>
       <material name="sensor_navy"/>
     </visual>
@@ -71,7 +71,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://nav_bot_description/meshes/depth_camera_link.dae"/>
+        <mesh filename="package://nav_bot_description/meshes/depth_camera_link.stl"/>
       </geometry>
       <material name="lens_dark"/>
     </visual>
@@ -106,7 +106,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://nav_bot_description/meshes/camera_link.dae"/>
+        <mesh filename="package://nav_bot_description/meshes/camera_link.stl"/>
       </geometry>
       <material name="camera_gray"/>
     </visual>

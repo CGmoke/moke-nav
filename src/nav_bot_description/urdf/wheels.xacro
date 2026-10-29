@@ -23,7 +23,7 @@
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://nav_bot_description/meshes/wheel.dae"/>
+          <mesh filename="package://nav_bot_description/meshes/wheel.stl"/>
         </geometry>
         <material name="tire_black"/>
       </visual>

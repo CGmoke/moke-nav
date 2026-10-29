@@ -20,7 +20,7 @@ teleop 验证：
 
 import os
 
-from ament_index_python.packages import get_package_share_directory
+from ament_index_python.packages import get_package_share_directory  
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
@@ -40,16 +40,13 @@ def generate_launch_description():
     models_dir = os.path.join(gazebo_pkg_share, 'models')
     worlds_dir = os.path.join(gazebo_pkg_share, 'worlds')
     default_world = os.path.join(worlds_dir, 'small_house.world')
-
-    # model:// 解析依赖此变量：包含 models 与 worlds，并保留调用者原有的搜索路径。
-    # 机器人 visual 用 package://nav_bot_description/meshes/*.dae，sdformat_urdf 会
-    # 改写成 model://nav_bot_description/...，所以还必须加上该包 share 目录的上一级，
-    # 否则 spawn 时报 Unable to find file。
     desc_share_parent = os.path.dirname(description_pkg_share)
     existing = os.environ.get('GZ_SIM_RESOURCE_PATH', '')
     resource_path = os.pathsep.join([desc_share_parent, models_dir, worlds_dir])
     if existing:
         resource_path += os.pathsep + existing
+    # 注：本环境 gz-sim 8.15 的 ColladaLoader 无法解析 DAE 颜色材质（渲染为纯白），
+    # visual 已改用 STL + URDF material 的方式上色，勿改回 .dae。
 
     xacro_file = os.path.join(description_pkg_share, 'urdf', 'nav_bot.urdf.xacro')
 

@@ -14,7 +14,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://nav_bot_description/meshes/base_link.dae"/>
+        <mesh filename="package://nav_bot_description/meshes/base_link.stl"/>
       </geometry>
       <material name="chassis_dark"/>
     </visual>
@@ -49,7 +49,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://nav_bot_description/meshes/platform_link.dae"/>
+        <mesh filename="package://nav_bot_description/meshes/platform_link.stl"/>
       </geometry>
       <material name="body_white"/>
     </visual>
@@ -73,7 +73,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://nav_bot_description/meshes/arm_base_link.dae"/>
+        <mesh filename="package://nav_bot_description/meshes/arm_base_link.stl"/>
       </geometry>
       <material name="accent_amber"/>
     </visual>
