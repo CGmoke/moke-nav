@@ -129,7 +129,14 @@ def generate_launch_description():
         package='ros_gz_bridge',
         executable='parameter_bridge',
         arguments=bridge_args,
-        parameters=[{'use_sim_time': use_sim_time}],
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            # ★ 不要给激光/相机单独设 override_frame_id —— 那会把所有走这个
+            #   bridge 的话题帧名统一改掉。本项目的帧名由 URDF 里各 <sensor>
+            #   的 <gz_frame_id> 决定（见 gazebo.xacro），gz 侧已经是
+            #   LidarScan.frame = "lidar_link"，bridge 按原值透传即可。
+            #   注意：本参数是"全局覆盖"，留空才是正确做法。
+        }],
         # 关节状态重映射为 ROS 标准 /joint_states，供 robot_state_publisher 使用
         remappings=[('/world/default/model/nav_bot/joint_state', '/joint_states')],
         output='screen',
