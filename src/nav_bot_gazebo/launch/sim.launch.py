@@ -45,9 +45,6 @@ def generate_launch_description():
     resource_path = os.pathsep.join([desc_share_parent, models_dir, worlds_dir])
     if existing:
         resource_path += os.pathsep + existing
-    # 注：本环境 gz-sim 8.15 的 ColladaLoader 无法解析 DAE 颜色材质（渲染为纯白），
-    # visual 已改用 STL + URDF material 的方式上色，勿改回 .dae。
-
     xacro_file = os.path.join(description_pkg_share, 'urdf', 'nav_bot.urdf.xacro')
 
     # 参数
@@ -64,10 +61,10 @@ def generate_launch_description():
     robot_description = ParameterValue(
         Command(['xacro ', xacro_file]), value_type=str)
 
-    # ── gz sim 服务端 + GUI（复用 view_world 的启动方式，自动加载 world） ──
     gz_args = ['-r', '-v', verbose, world]
     gz_server = ExecuteProcess(
-        cmd=['gz', 'sim', '-s'] + gz_args,
+        # --headless-rendering: 传感器渲染走 EGL，无显示服务器的环境（GLX 会 BadValue 崩溃）
+        cmd=['gz', 'sim', '-s', '--headless-rendering'] + gz_args,
         output='screen',
         condition=UnlessCondition(gui),
     )

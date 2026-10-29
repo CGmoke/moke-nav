@@ -33,22 +33,24 @@
     </plugin>
   </gazebo>
 
-  <!-- ==================== 驱动轮摩擦（规范 v2.0：mu ≥ 0.9） ==================== -->
-  <!-- 注：gz-sim 对 URDF mu1/mu2 的转换以 sdformat_urdf 支持为准，阶段 2 在 world/SDF 复核 -->
+  <!-- ==================== 驱动轮摩擦（4WD 滑移转向关键参数） ==================== -->
+  <!-- mu1=滚动方向摩擦（高，提供驱动力）；mu2=侧向摩擦（低，转弯必须侧滑！）。
+       实测：mu1=0.3/mu2=0.9（装反）→ 完全无法转向、纯侧滑；
+       mu1=1.0/mu2=0.3 → 转向正常（空地 1 rad/s 指令 14s 转 ~90°）。 -->
   <gazebo reference="wheel_lf_link">
-    <mu1>0.9</mu1><mu2>0.9</mu2>
+    <mu1>1.0</mu1><mu2>0.3</mu2>
     <kp>1000000.0</kp><kd>100.0</kd>
   </gazebo>
   <gazebo reference="wheel_rf_link">
-    <mu1>0.9</mu1><mu2>0.9</mu2>
+    <mu1>1.0</mu1><mu2>0.3</mu2>
     <kp>1000000.0</kp><kd>100.0</kd>
   </gazebo>
   <gazebo reference="wheel_lb_link">
-    <mu1>0.9</mu1><mu2>0.9</mu2>
+    <mu1>1.0</mu1><mu2>0.3</mu2>
     <kp>1000000.0</kp><kd>100.0</kd>
   </gazebo>
   <gazebo reference="wheel_rb_link">
-    <mu1>0.9</mu1><mu2>0.9</mu2>
+    <mu1>1.0</mu1><mu2>0.3</mu2>
     <kp>1000000.0</kp><kd>100.0</kd>
   </gazebo>
 
