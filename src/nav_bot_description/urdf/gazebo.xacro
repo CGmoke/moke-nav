@@ -58,6 +58,11 @@
   <gazebo reference="lidar_link">
     <sensor name="lidar" type="gpu_lidar">
       <pose>0 0 0 0 0 0</pose>
+      <!-- ★ gz_frame_id 必须写 URDF 的 link 名。不写的话 gz 会拼成
+           "<模型名>/<模型根link>/<传感器名>" = nav_bot/base_link/lidar，
+           ROS 侧 TF 树里没有这个 frame → slam_toolbox / costmap 全部
+           报 "Message Filter dropping message: queue is full"。 -->
+      <gz_frame_id>lidar_link</gz_frame_id>
       <topic>scan</topic>
       <update_rate>10</update_rate>
       <always_on>true</always_on>
@@ -88,6 +93,7 @@
   <!-- ==================== IMU ==================== -->
   <gazebo reference="imu_link">
     <sensor name="imu" type="imu">
+      <gz_frame_id>imu_link</gz_frame_id>
       <topic>imu/data</topic>
       <update_rate>100</update_rate>
       <always_on>true</always_on>
@@ -112,6 +118,7 @@
   <gazebo reference="depth_camera_link">
     <sensor name="depth_camera" type="rgbd_camera">
       <pose>0.005 0 0 0 ${depth_cam_pitch} 0</pose>
+      <gz_frame_id>depth_camera_link</gz_frame_id>
       <topic>depth_camera</topic>
       <update_rate>15</update_rate>
       <always_on>true</always_on>
@@ -133,6 +140,7 @@
   <!-- ==================== RGB 摄像头 ==================== -->
   <gazebo reference="camera_link">
     <sensor name="rgb_camera" type="camera">
+      <gz_frame_id>camera_link</gz_frame_id>
       <topic>camera/image</topic>
       <update_rate>30</update_rate>
       <always_on>true</always_on>

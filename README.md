@@ -80,7 +80,7 @@ colcon build --symlink-install --cmake-args -DPython3_EXECUTABLE=/usr/bin/python
 ## 阶段进度
 
 - [X] **阶段 1** 建模：`check_urdf` 通过、TF 树完整、轮子转向正确
-- [ ] **阶段 2** 仿真：键盘遥控可行驶，`/scan` `/odom` `/tf` `/clock` 正常
+- [X] **阶段 2** 仿真：键盘遥控可行驶，`/scan` `/odom` `/tf` `/clock` 正常
 - [ ] **阶段 3** 建图：10×10 m 地图闭合、无重影
 - [ ] **阶段 4** 导航：AMCL 收敛 < 3 s，10 目标 ≥ 8 成功
 - [ ] **阶段 5** 评测：批量脚本 + CSV + 参数敏感性曲线
