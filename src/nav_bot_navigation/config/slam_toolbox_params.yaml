@@ -6,9 +6,11 @@
 # 与官方 slam_toolbox/config/mapper_params_online_async.yaml 的差异都写了理由，
 # 改参数前先读对应注释——不理解就保持默认，一次只改一个。
 #
-# 本机型特殊点：URDF 无 base_footprint，base_link 原点就在地面（z=0），
-#   所以 base_frame 必须写 base_link。写 base_footprint 会报
-#   "TF_OLD_DATA / Frame base_footprint does not exist"，建图直接起不来。
+# 本机型特殊点：URDF 根 link 是零质量的 base_footprint（为消除 KDL 的
+#   "root link has an inertia" 警告），base_link 由 robot_state_publisher 以固定
+#   TF 挂在 base_footprint 下，且两者原点重合（base_link 在地面上，z=0）。
+#   所以 base_frame 写 base_link、base_footprint 都成立（TF 链：odom -> base_footprint
+#   -> base_link）；这里保留 base_link，与既有参数/实测保持一致。
 
 slam_toolbox:
   ros__parameters:
@@ -25,7 +27,7 @@ slam_toolbox:
     # ==================== 坐标系 / 话题（本项目的核心改动） ====================
     odom_frame: odom          # 来自 gz DiffDrive 插件
     map_frame: map            # slam_toolbox 自己发布 map -> odom
-    base_frame: base_link     # ★ 本机型无 base_footprint，官方默认值必须改掉
+    base_frame: base_link     # ★ 与 base_footprint 原点重合，两者都可写；沿用实测通过的 base_link
     scan_topic: /scan         # 与 sim.launch.py 桥接的 gz 话题一致
     use_map_saver: true
     mode: mapping             # mapping=建图；阶段 4 定位改 localization

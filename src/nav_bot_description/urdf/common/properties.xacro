@@ -5,7 +5,8 @@
   单位约定：长度 m，质量 kg，角度 rad（注释内为 mm 便于加工）
   坐标系：REP-103（x 前 / y 左 / z 上）
   基准约定：base_link 原点在地面上（轮心 z = 轮半径 R），
-           即 base_link 同时承担 base_footprint 的角色，odom -> base_link 直接可用。
+           URDF 根 link 是零质量的 base_footprint（与 base_link 原点重合，见 base.xacro），
+           用于消除 KDL 的 "root link has an inertia" 警告：odom -> base_footprint -> base_link。
   外形修正（延续 4WD 版外形审查结论）：
     - 底盘宽 500 → 400 mm：轮距 y=±0.24 的四轮完全外露于车体两侧（420×500 稿
       会把轮子埋进箱体，渲染不可用）；

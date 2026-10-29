@@ -7,23 +7,25 @@
 #   陀螺仪测的是车身真实角速度，与打滑无关，所以旋转量由 IMU 提供、平移量由轮式里程计提供。
 #
 # 用法：由 slam.launch.py 自动拉起（use_ekf:=true，默认开）。
-#   输出话题 /odometry/filtered；TF 发布 odom -> base_link。
+#   输出话题 /odometry/filtered；TF 发布 odom -> base_footprint。
 #
-# ★ 关键约束：同一时刻只能有一个节点发布 odom -> base_link。
+# ★ 关键约束：同一时刻只能有一个节点发布 odom -> base_footprint。
 #   为此 gazebo.xacro 里 DiffDrive 的 <tf_topic> 已改为 /tf_gz_odom（未被 bridge 桥接），
-#   EKF 是 odom->base_link 的唯一发布者。两处都发会 TF 打架、odom 抽搐。
+#   EKF 是 odom->base_footprint 的唯一发布者。两处都发会 TF 打架、odom 抽搐。
+#   base_footprint 是 URDF 根 link（零质量，见 base.xacro），base_link 由 RSP 以
+#   固定 TF 挂在它下面；EKF 必须输出到 base_footprint，否则 base_link 会出现两个父帧。
 
 ekf_filter_node:
   ros__parameters:
     frequency: 30.0            # EKF 更新频率，与 odom 的 30 Hz 对齐
     sensor_timeout: 0.1
     two_d_mode: true           # 室内平面运动：z / roll / pitch 及其速度强制为 0
-    publish_tf: true           # 由 EKF 发布 odom -> base_link
+    publish_tf: true           # 由 EKF 发布 odom -> base_footprint
     print_diagnostics: false
 
     map_frame: map
     odom_frame: odom
-    base_link_frame: base_link
+    base_link_frame: base_footprint
     world_frame: odom          # 本地滤波器：融合结果仍是 odom 系
                                # （map->odom 的修正由 slam_toolbox / AMCL 负责，EKF 不管）
 

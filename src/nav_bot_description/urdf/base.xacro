@@ -8,6 +8,20 @@
   <!-- 外观网格（外观 v2.5）：visual 引用 meshes/ 下的 .dae（自带材质色）；
        碰撞体保持简化几何体（规范要求，禁止复用外观 mesh）。 -->
 
+  <!-- ==================== base_footprint（零质量根 link，仅用于 TF） ==================== -->
+  <!-- KDL（robot_state_publisher / RViz 的解析器）不支持根 link 带惯性，会刷
+       "The root link base_link has an inertia specified in the URDF" 警告。
+       这里加一个无质量的 base_footprint 作为根，与 base_link 固定且原点重合：
+         TF：odom -> base_footprint -> base_link -> 各传感器 link
+       Gazebo 侧固定关节会把 base_link 合并进 base_footprint（位姿/惯量不变），
+       所以 DiffDrive 的 child_frame_id 与 EKF 的 base_link_frame 都要写 base_footprint。 -->
+  <link name="base_footprint"/>
+  <joint name="base_footprint_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
   <!-- ==================== base_link 底盘框架 520×400×120 mm ==================== -->
   <link name="base_link">
     <!-- 外观 mesh：底盘箱体 + 前脸青色灯带（已在 mesh 内合并，坐标以 link 原点为基准） -->

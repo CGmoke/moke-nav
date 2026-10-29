@@ -47,9 +47,10 @@
 ## 关键约束（踩过的坑）
 
 - 每个 link 必须有非零 `inertial`，质量为 0 会让模型在 Gazebo 里乱飞。
+  例外：`base_footprint` 是零质量根 link，靠固定关节合并进 `base_link`，只提供 TF。
 - `collision` 必须用简化几何体，禁止直接复用高精度 mesh。
 - 四轮 `axis` 统一为 +y（REP-103），差速插件按关节名区分左右、由控制器处理转向符号。
-- `base_link` 原点位于地面（轮心 z = 轮半径 R），充当 `base_footprint`，否则 costmap 中心偏移。
+- `base_link` 原点位于地面（轮心 z = 轮半径 R），其父帧 `base_footprint` 与它重合，否则 costmap 中心偏移。
 - `wheel_separation`(0.48) / `wheel_radius`(0.10) 以 `properties.xacro` 为准，阶段 2 插件必须抄同一组数值。
 - 驱动轮摩擦 mu ≥ 0.9，否则四轮互顶会让里程计失真（yaml v2.0 contact）。
 - 深度相机机身藏于车头内，Gazebo 传感器 `<pose>` 前移到面板外并带 −15° 俯仰，否则虚拟相机被自家前壁遮挡。

@@ -15,11 +15,15 @@
       <odom_topic>odom</odom_topic>
       <!-- ★ TF 改发到 /tf_gz_odom 且不做桥接。
            轮式里程计的 TF 在 4WD 滑移转向下误差极大（实测旋转虚报 2.6×），
-           odom->base_link 改由 robot_localization EKF 发布（见 config/ekf.yaml）。
+           odom->base_footprint 改由 robot_localization EKF 发布（见 config/ekf.yaml）。
            同一时刻只能有一个发布者，否则 TF 打架、odom 抽搐。 -->
       <tf_topic>/tf_gz_odom</tf_topic>
       <frame_id>odom</frame_id>
-      <child_frame_id>base_link</child_frame_id>
+      <!-- ★ 必须写 base_footprint：URDF 根 link 是零质量的 base_footprint，
+           base_link 通过固定关节挂在它下面，gz 合并后模型基准 link 就是 base_footprint。
+           写 base_link 会和 robot_state_publisher 发的 base_footprint->base_link
+           形成"一个子帧两个父帧"，TF 打架。 -->
+      <child_frame_id>base_footprint</child_frame_id>
       <min_linear_velocity>-${max_linear_vel}</min_linear_velocity>
       <max_linear_velocity>${max_linear_vel}</max_linear_velocity>
       <min_angular_velocity>-${max_angular_vel}</min_angular_velocity>
