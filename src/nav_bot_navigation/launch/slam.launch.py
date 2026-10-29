@@ -52,6 +52,24 @@ def launch_setup(context, *args, **kwargs):
         }.items(),
     )
 
+    # ── robot_localization EKF：融合轮式里程计 + IMU ──
+    # 4WD 滑移转向下轮式里程计旋转误差极大（实测 2.6×），
+    # 旋转量改由陀螺仪提供（见 config/ekf.yaml 头部注释）。
+    # EKF 是 odom->base_link 的唯一发布者（DiffDrive 的 TF 已改道 /tf_gz_odom）。
+    actions = [slam_launch]
+    if LaunchConfiguration('use_ekf').perform(context) == 'true':
+        ekf = Node(
+            package='robot_localization',
+            executable='ekf_node',
+            name='ekf_filter_node',
+            output='screen',
+            parameters=[
+                os.path.join(nav_share, 'config', 'ekf.yaml'),
+                {'use_sim_time': LaunchConfiguration('use_sim_time')},
+            ],
+        )
+        actions.append(ekf)
+
     rviz = Node(
         package='rviz2',
         executable='rviz2',
@@ -61,8 +79,9 @@ def launch_setup(context, *args, **kwargs):
         output='screen',
         condition=IfCondition(LaunchConfiguration('use_rviz')),
     )
+    actions.append(rviz)
 
-    return [slam_launch, rviz]
+    return actions
 
 
 def generate_launch_description():
@@ -81,6 +100,9 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'use_rviz', default_value='true',
             description='是否启动 RViz'),
+        DeclareLaunchArgument(
+            'use_ekf', default_value='true',
+            description='是否启动 robot_localization EKF（融合 IMU 修正 4WD 里程计漂移）'),
         DeclareLaunchArgument(
             'use_sim_time', default_value='true',
             description='使用仿真时钟（Gazebo 必须为 true）'),

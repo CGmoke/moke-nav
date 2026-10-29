@@ -109,7 +109,8 @@ def generate_launch_description():
         # 差速驱动（DiffDrive）
         '/cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist',
         '/odom@nav_msgs/msg/Odometry[gz.msgs.Odometry',
-        '/tf@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V',
+        # 注意：不再桥接 /tf —— DiffDrive 的 TF 已改道 /tf_gz_odom（见 gazebo.xacro），
+        # odom->base_link 由 robot_localization EKF 发布，避免双发布者打架。
         # 关节状态
         '/world/default/model/nav_bot/joint_state@sensor_msgs/msg/JointState[gz.msgs.Model',
         # 激光雷达

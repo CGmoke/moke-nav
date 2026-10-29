@@ -13,7 +13,11 @@
       <odom_publish_frequency>30</odom_publish_frequency>
       <topic>cmd_vel</topic>
       <odom_topic>odom</odom_topic>
-      <tf_topic>/tf</tf_topic>
+      <!-- ★ TF 改发到 /tf_gz_odom 且不做桥接。
+           轮式里程计的 TF 在 4WD 滑移转向下误差极大（实测旋转虚报 2.6×），
+           odom->base_link 改由 robot_localization EKF 发布（见 config/ekf.yaml）。
+           同一时刻只能有一个发布者，否则 TF 打架、odom 抽搐。 -->
+      <tf_topic>/tf_gz_odom</tf_topic>
       <frame_id>odom</frame_id>
       <child_frame_id>base_link</child_frame_id>
       <min_linear_velocity>-${max_linear_vel}</min_linear_velocity>

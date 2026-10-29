@@ -1,0 +1,62 @@
+# robot_localization EKF —— 用 IMU 修正 4WD 滑移转向导致的里程计漂移
+#
+# 背景（2026-10-29 实测）：
+#   指令 wz=0.5 rad/s × 6 s（理论 172°），实际只转 19.8°，而轮式里程计报 51.4°（虚报 2.6×）。
+#   原因：四轮差速（4WD）转弯靠轮胎侧滑，gz DiffDrive 插件按"轮速×轮半径"积分算里程计，
+#   该公式假设不打滑 → 打滑越大量程越虚。
+#   陀螺仪测的是车身真实角速度，与打滑无关，所以旋转量由 IMU 提供、平移量由轮式里程计提供。
+#
+# 用法：由 slam.launch.py 自动拉起（use_ekf:=true，默认开）。
+#   输出话题 /odometry/filtered；TF 发布 odom -> base_link。
+#
+# ★ 关键约束：同一时刻只能有一个节点发布 odom -> base_link。
+#   为此 gazebo.xacro 里 DiffDrive 的 <tf_topic> 已改为 /tf_gz_odom（未被 bridge 桥接），
+#   EKF 是 odom->base_link 的唯一发布者。两处都发会 TF 打架、odom 抽搐。
+
+ekf_filter_node:
+  ros__parameters:
+    frequency: 30.0            # EKF 更新频率，与 odom 的 30 Hz 对齐
+    sensor_timeout: 0.1
+    two_d_mode: true           # 室内平面运动：z / roll / pitch 及其速度强制为 0
+    publish_tf: true           # 由 EKF 发布 odom -> base_link
+    print_diagnostics: false
+
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_link
+    world_frame: odom          # 本地滤波器：融合结果仍是 odom 系
+                               # （map->odom 的修正由 slam_toolbox / AMCL 负责，EKF 不管）
+
+    # ── 输入 1：轮式里程计（gz DiffDrive 插件发布）──
+    # 只取 x 方向线速度。y 方向线速度与角速度在 4WD 上被滑移污染，不用。
+    odom0: /odom
+    odom0_config: [false, false, false,   # x, y, z
+                   false, false, false,   # roll, pitch, yaw
+                   true,  false, false,   # vx ← 唯一启用的里程计分量
+                   false, false, false,   # vroll, vpitch, vyaw
+                   false, false, false]   # ax, ay, az
+    odom0_differential: false
+    odom0_relative: false
+    odom0_queue_size: 10
+    # 4WD 滑移下线速度也有误差，给一个较宽的信任区间
+    odom0_pose_rejection_threshold: 5.0
+    odom0_twist_rejection_threshold: 5.0
+
+    # ── 输入 2：IMU（gz imu 传感器，100 Hz，陀螺 σ=0.0002 rad/s）──
+    # 关键：启用 vyaw（z 轴角速度），旋转全部由陀螺积分得到，不受打滑影响。
+    imu0: /imu/data
+    imu0_config: [false, false, false,    # x, y, z
+                  false, false, false,    # roll, pitch, yaw
+                  false, false, false,    # vx, vy, vz
+                  false, false, true,     # vyaw ← 关键
+                  false, false, false]    # ax, ay, az
+    imu0_differential: false
+    imu0_relative: true        # true = 只用 IMU 的"增量"（即角速度），不信任其绝对朝向。
+                               # 真机 6 轴 IMU 的绝对 yaw 不可靠，这样配置将来能直接迁移。
+    imu0_remove_gravitational_acceleration: true
+    imu0_queue_size: 10
+
+    # 过程噪声 process_noise_covariance 是 15x15 矩阵（225 个数），包内有合理默认值，
+    # 这里不覆盖。若日后调优，可从
+    # /opt/ros/jazzy/share/robot_localization/params/ekf.yaml 拷默认矩阵来改。
+    # 原则：调大某项 = 更信任对应传感器；调小 = 更信任运动模型预测。
