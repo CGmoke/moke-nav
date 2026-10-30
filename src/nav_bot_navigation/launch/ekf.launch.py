@@ -27,7 +27,12 @@ from launch_ros.actions import Node
 
 def launch_setup(context, *args, **kwargs):
     # 参数文件路径：默认 config/ekf.yaml，允许外部覆盖
-    params_file = LaunchConfiguration('params_file').perform(context)
+    # ★ 参数名必须是 ekf_params_file，不能叫 params_file：
+    #   DeclareLaunchArgument 是全局作用域的，父 launch（如 localization.launch.py）
+    #   里的 params_file=nav2_params.yaml 会沿用到 Include 进来的子 launch，
+    #   覆盖掉这里的默认值 —— 症状就是 EKF 加载了 nav2 的 yaml、odom0/imu0 全空、
+    #   /odometry/filtered 一条都不发。
+    params_file = LaunchConfiguration('ekf_params_file').perform(context)
 
     ekf = Node(
         package='robot_localization',
@@ -52,7 +57,7 @@ def generate_launch_description():
 
     return LaunchDescription([
         DeclareLaunchArgument(
-            'params_file', default_value=default_params,
+            'ekf_params_file', default_value=default_params,
             description='robot_localization 参数文件（默认 config/ekf.yaml）'),
         DeclareLaunchArgument(
             'use_sim_time', default_value='true',

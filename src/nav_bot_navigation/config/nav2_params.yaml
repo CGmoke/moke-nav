@@ -1,0 +1,82 @@
+# Nav2 参数总表 —— 阶段四 T2（定位部分）
+#
+# 命名的落点（与 docs/阶段四实施规划.md T4 的说明一致）：
+#   map_server / amcl 的参数从此就放在本文件里，navigation.launch.py 复用同一份，
+#   不再单独维护 amcl.yaml，避免"两个文件各改一半"。
+#   阶段四 T4 只需在本文件里继续追加 bt_navigator / planner_server / controller_server 等小节。
+#
+# TF 约定（本机型实测，勿改）：
+#   map --(amcl)--> odom --(ekf_filter_node)--> base_footprint --(robot_state_publisher)--> base_link --> lidar_link
+#   即 AMCL 只发 map->odom；odom->base_footprint 由 EKF 独家发布（见 config/ekf.yaml 头部注释）。
+#   base_frame_id 必须写 base_footprint（有 odom 父帧的那个），写 base_link 也能查到，
+#   但会和 robot_base_frame 语义混淆，统一用 base_footprint。
+
+map_server:
+  ros__parameters:
+    use_sim_time: true
+    # yaml_filename 由 launch 注入（map 是运行期参数，不写死在这里）
+    topic_name: map
+    frame_id: map
+
+amcl:
+  ros__parameters:
+    use_sim_time: true
+
+    # ── 帧约定 ──
+    global_frame_id: map
+    odom_frame_id: odom
+    base_frame_id: base_footprint     # ★ 本机型 URDF 根 link；写错直接不收敛
+    tf_broadcast: true                # AMCL 发布 map->odom
+
+    # ── 初始位姿 ──
+    # 调试期固定给位姿，省去每次 RViz 点 2D Pose Estimate。
+    # 坐标必须与 sim.launch.py 的出生点（默认 0,0,yaw=0）一致，否则 map->odom 一上来就偏。
+    # 稳定后可把 set_initial_pose 改 false，改用 RViz 手动给。
+    set_initial_pose: true
+    always_reset_initial_pose: false
+    first_map_only: false
+    initial_pose:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+      yaw: 0.0
+
+    # ── 运动模型：4WD 滑移转向，轮式里程计噪声远大于两轮差速 ──
+    # 1) alpha 从官方 0.2 起步（本阶段只观察，不扫参）
+    # 2) 若粒子跟丢/发散，再逐个放大 alpha1（旋转→旋转）、alpha3（平移→平移）
+    robot_model_type: nav2_amcl::DifferentialMotionModel
+    alpha1: 0.2
+    alpha2: 0.2
+    alpha3: 0.2
+    alpha4: 0.2
+    alpha5: 0.2
+
+    # ── 激光模型 ──
+    laser_model_type: likelihood_field
+    laser_max_range: 12.0             # 与 gpu_lidar 的 range/max 对齐
+    laser_min_range: 0.15
+    laser_likelihood_max_dist: 2.0
+    max_beams: 60
+    sigma_hit: 0.2
+    z_hit: 0.5
+    z_rand: 0.5
+    z_max: 0.05
+    z_short: 0.05
+    do_beamskip: false
+
+    # ── 粒子数与更新门限 ──
+    max_particles: 2000
+    min_particles: 500
+    pf_err: 0.05
+    pf_z: 0.99
+    resample_interval: 1
+    recovery_alpha_fast: 0.0
+    recovery_alpha_slow: 0.0
+
+    # 太小会吃满 CPU；静态验收时车不动，这两个值决定它多久算一次
+    update_min_d: 0.10
+    update_min_a: 0.20
+    transform_tolerance: 1.0
+    save_pose_rate: 0.5
+
+    scan_topic: scan                  # 相对名 -> /scan
