@@ -53,22 +53,21 @@ def launch_setup(context, *args, **kwargs):
     )
 
     # ── robot_localization EKF：融合轮式里程计 + IMU ──
-    # 4WD 滑移转向下轮式里程计旋转误差极大（实测 2.6×），
+    # 4WD 滑移转向下轮式里程计旋转虚报（IMU 真值 34.6° vs 里程计 45.4°，1.31×，
+    # 详见 docs/阶段三任务总结.md 与 experiments.md EXP-001），
     # 旋转量改由陀螺仪提供（见 config/ekf.yaml 头部注释）。
-    # EKF 是 odom->base_link 的唯一发布者（DiffDrive 的 TF 已改道 /tf_gz_odom）。
-    actions = [slam_launch]
-    if LaunchConfiguration('use_ekf').perform(context) == 'true':
-        ekf = Node(
-            package='robot_localization',
-            executable='ekf_node',
-            name='ekf_filter_node',
-            output='screen',
-            parameters=[
-                os.path.join(nav_share, 'config', 'ekf.yaml'),
-                {'use_sim_time': LaunchConfiguration('use_sim_time')},
-            ],
-        )
-        actions.append(ekf)
+    # EKF 是 odom->base_footprint 的唯一发布者（DiffDrive 的 TF 已改道 /tf_gz_odom）。
+    # 代码抽到了 launch/ekf.launch.py，这里只做 Include，use_ekf:=false 时整段跳过。
+    ekf_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(nav_share, 'launch', 'ekf.launch.py')),
+        launch_arguments={
+            'use_sim_time': LaunchConfiguration('use_sim_time'),
+        }.items(),
+        condition=IfCondition(LaunchConfiguration('use_ekf')),
+    )
+
+    actions = [slam_launch, ekf_launch]
 
     rviz = Node(
         package='rviz2',
