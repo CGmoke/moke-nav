@@ -1,15 +1,4 @@
-# Nav2 参数总表 —— 阶段四 T2（定位部分）
-#
-# 命名的落点（与 docs/阶段四实施规划.md T4 的说明一致）：
-#   map_server / amcl 的参数从此就放在本文件里，navigation.launch.py 复用同一份，
-#   不再单独维护 amcl.yaml，避免"两个文件各改一半"。
-#   阶段四 T4 只需在本文件里继续追加 bt_navigator / planner_server / controller_server 等小节。
-#
-# TF 约定（本机型实测，勿改）：
-#   map --(amcl)--> odom --(ekf_filter_node)--> base_footprint --(robot_state_publisher)--> base_link --> lidar_link
-#   即 AMCL 只发 map->odom；odom->base_footprint 由 EKF 独家发布（见 config/ekf.yaml 头部注释）。
-#   base_frame_id 必须写 base_footprint（有 odom 父帧的那个），写 base_link 也能查到，
-#   但会和 robot_base_frame 语义混淆，统一用 base_footprint。
+# Nav2 参数总表
 
 map_server:
   ros__parameters:
@@ -80,3 +69,260 @@ amcl:
     save_pose_rate: 0.5
 
     scan_topic: scan                  # 相对名 -> /scan
+
+# ══════════════ Nav2 导航节 ══════════════
+
+bt_navigator:
+  ros__parameters:
+    use_sim_time: true
+    global_frame: map
+    robot_base_frame: base_footprint
+    odom_topic: /odom
+    bt_loop_duration: 10
+    default_server_timeout: 20
+    wait_for_service_timeout: 1000
+    action_sercer_result_timeout: 900.0
+    navigators: ["navigate_to_pose","navigate_through_poses"]
+    navigate_to_pose:
+      plugin: "nav2_bt_navigator::NavigateToPoseNavigator"
+    navigate_through_poses:
+      plugin: "nav2_bt_navigator::NavigateThroughPosesNavigator"
+    error_code_names:
+      -compute_path_error_code
+      -follow_path_error_code
+      
+
+
+
+
+planner_server:
+  ros__parameters:
+    use_sim_time: true
+    expected_planner_frequency: 20.0
+    planner_plugins: ["GridBased"]
+    GridBased:
+      plugin: "nav2_navfn_planner::NavfnPlanner"   # :: 不是 /；写错 configure 阶段就失败
+      tolerance: 0.5        # 目标点落在障碍/未知区时，向外找最近可通行点的最大半径
+      use_astar: false      # false = Dijkstra；阶段五再对比 A*
+      allow_unknown: true   # 与 global_costmap.track_unknown_space 成对使用
+    
+controller_server:
+  ros__parameters:
+    use_sim_time: true
+
+    # ── 服务层 ──
+    controller_frequency: 20.0        # 与 odom 30 Hz / local_costmap 5 Hz 配套；再高只会空转等新数据
+    failure_tolerance: 0.3            # 连续失败 0.3 s 才上报，避免一次瞬卡就触发 recovery
+    min_x_velocity_threshold: 0.001
+    min_y_velocity_threshold: 0.5     # 差速车 vy 恒为 0；留 0.5 防止浮点噪声被当成侧向速度
+    min_theta_velocity_threshold: 0.001
+    use_realtime_priority: false      # 仿真里开实时优先级只会报权限错误
+
+    progress_checker_plugins: ["progress_checker"]
+    goal_checker_plugins: ["general_goal_checker"]
+    controller_plugins: ["FollowPath"]
+
+    # ── 卡住判据：多久没动算卡住 ──
+    progress_checker:
+      plugin: "nav2_controller::SimpleProgressChecker"
+      required_movement_radius: 0.5   # 10 s 内至少移动 0.5 m（vx 0.3 时理论上能走 3 m，余量充足）
+      movement_time_allowance: 10.0
+
+    # ── 到达判据 ──
+    general_goal_checker:
+      stateful: true                  # 到达后锁存，避免出容差又被判"没到"
+      plugin: "nav2_controller::SimpleGoalChecker"
+      xy_goal_tolerance: 0.20         # 太小 → 目标点附近反复微调、原地打转
+      yaw_goal_tolerance: 0.30        # 与 4WD 实际转向能力挂钩，别比车能做到的还严
+
+    # ── MPPI 骨架：只填必需项，critic 权重先用默认，跑通后再调 ──
+    FollowPath:
+      plugin: "nav2_mppi_controller::MPPIController"
+      motion_model: "DiffDrive"       # 差速模型：只考虑 vx / wz，不采样 vy
+      time_steps: 56                  # 56 × 0.05 = 2.8 s 预瞄，与 4×4 m 局部图配套
+      model_dt: 0.05
+      batch_size: 2000                # 每周期采样轨迹数；CPU 吃紧先降到 1000
+
+      # ★ 速度边界：vx_max 必须与 velocity_smoother.max_velocity[0] 一致，
+      #   否则 smoother 会静默截断，你在 cmd_vel 上看到的不是 MPPI 想发的值。
+      vx_max: 0.3
+      vx_min: -0.35
+      vy_max: 0.0                     # DiffDrive 无侧向速度
+      wz_max: 2.0                     # ★ 4WD 滑移补偿值，待阶跃实测后再修正
+      vx_std: 0.2
+      vy_std: 0.0                     # 不采样 vy，省算力
+      wz_std: 0.42                    # 保持 stock 的 wz_std / wz_max ≈ 0.21 比例
+      ax_max: 3.0
+      ax_min: -3.0
+      az_max: 3.5                     # az_max / wz_max ≈ 1.75，与 stock 的 1.84 基本一致
+
+      iteration_count: 1
+      prune_distance: 1.7
+      transform_tolerance: 0.1
+      temperature: 0.3
+      gamma: 0.015
+      visualize: true
+      regenerate_noises: true
+
+      # critic 列表：按 stock 顺序；每个 critic 的小节暂不写，全部走默认权重
+      critics: ["ConstraintCritic", "CostCritic", "GoalCritic", "GoalAngleCritic",
+                "PathAlignCritic", "PathFollowCritic", "PathAngleCritic", "PreferForwardCritic"]
+
+      # 唯一现在就必填的 critic：碰撞判定必须按 footprint 多边形，
+      # 否则只按中心点判碰撞，矩形车身在窄门会"擦边通过"。
+      CostCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 3.81
+        near_collision_cost: 253
+        critical_cost: 300.0
+        consider_footprint: true      # ★ 与 footprint 配套
+        collision_cost: 1000000.0     # 碰撞惩罚要远大于其它 critic，才能主导优化
+        near_goal_distance: 1.0
+        trajectory_point_step: 2
+    
+
+behavior_server:
+  ros__parameters:
+    use_sim_time: true
+
+    # ── 帧约定 ──
+    local_frame: odom               # 局部动作在连续系里做
+    global_frame: map
+    robot_base_frame: base_footprint
+    transform_tolerance: 0.1
+
+    cycle_frequency: 10.0           # 动作内部循环节拍；不需要和 controller 的 20 Hz 一致
+
+    # 只留 BT 默认恢复树真正会用到的三个动作：
+    # clear costmap 由 BT 里的 ClearEntireCostmap 节点直接调服务，不走本节点
+    behavior_plugins: ["spin", "backup", "wait"]
+    spin:
+      plugin: "nav2_behaviors::Spin"
+    backup:
+      plugin: "nav2_behaviors::BackUp"
+    wait:
+      plugin: "nav2_behaviors::Wait"
+
+    simulate_ahead_time: 2.0        # 预判未来 2 s 是否撞
+
+    # ★ 转速上限必须 == velocity_smoother.max_velocity[2]。
+    #   behavior 的 cmd_vel 同样被 remap 到 cmd_vel_nav 并经过 smoother；
+    #   这里写大于 2.0 的值会被 smoother 静默截断，白白让你以为补偿了。
+    max_rotational_vel: 2.0
+    min_rotational_vel: 0.5         # 末段收敛速度：4WD 下指令只兑现 ~10~20%，
+                                    # 太小会让 Spin 在容差边缘反复微调
+    rotational_acc_lim: 3.2
+    
+
+
+
+velocity_smoother:
+  ros__parameters:
+    use_sim_time: true
+
+    smoothing_frequency: 20.0        # 与 controller_server.controller_frequency 对齐
+    scale_velocities: false          # false = 超限逐轴截断；true = 整体等比缩放
+    feedback: "OPEN_LOOP"            # 开环：只用指令历史平滑，不读 odom 实测速度
+                                     # 之后的对照实验再切 CLOSED_LOOP（4WD 打滑让 odom 速度不可全信）
+    stamp_smoothed_velocity_with_smoothing_time: false
+
+    # ★ 三个一致性约束（与 controller_server.FollowPath 对齐，不一致会被静默截断）
+    max_velocity: [0.3, 0.0, 2.0]    # == vx_max / wz_max
+    min_velocity: [-0.35, 0.0, -2.0] # == vx_min / -wz_max
+    max_accel: [2.5, 0.0, 3.2]
+    max_decel: [-2.5, 0.0, -3.2]
+
+    odom_topic: "odom"               # CLOSED_LOOP 时用它估实际速度
+    odom_duration: 0.1
+    deadband_velocity: [0.0, 0.0, 0.0]  # 0 = 关闭死区；设非 0 会把微小指令直接归零
+    velocity_timeout: 1.0            # ★ 安全阀：1 s 内没有新 cmd_vel 就停，别调大
+
+
+local_costmap:
+  local_costmap:
+    ros__parameters:
+      use_sim_time: true
+      global_frame: odom
+
+      update_frequency: 5.0
+      publish_frequency: 2.0
+
+      robot_base_frame: base_footprint
+      rolling_window: true
+      width: 4
+      height: 4
+      resolution: 0.05
+      footprint: "[[0.35,0.27],[0.35,-0.27],[-0.35,-0.27],[-0.35,0.27]]"
+
+      plugins: ["obstacle_layer","inflation_layer"]
+      
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: true
+        observation_sources: scan
+        scan: 
+          topic: /scan 
+          data_type: "LaserScan"
+          clearing: true
+          marking: true
+          obstacle_max_range: 2.5
+          obstacle_min_range: 0.0
+          raytrace_max_range: 3.0
+          raytrace_min_range: 0.0
+          max_obstacle_height: 2.0
+
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        cost_scaling_factor: 3.0
+        inflation_radius: 0.35
+      
+      always_send_full_costmap: true
+      
+
+global_costmap:
+  global_costmap:
+    ros__parameters:
+      use_sim_time: true
+      update_frequency: 1.0
+      publish_frequency: 1.0
+
+      global_frame: map
+      robot_base_frame: base_footprint
+      resolution: 0.05            
+      track_unknown_space: true     
+      
+      footprint: "[[0.35,0.27],[0.35,-0.27],[-0.35,-0.27],[-0.35,0.27]]"
+
+
+      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        
+        map_subscribe_transient_local: true
+
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: true
+        observation_sources: scan
+        scan:
+          topic: /scan
+          data_type: "LaserScan"
+          clearing: true
+          marking: true
+          obstacle_max_range: 2.5
+          obstacle_min_range: 0.0
+          raytrace_max_range: 3.0
+          raytrace_min_range: 0.0
+          max_obstacle_height: 2.0
+
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        cost_scaling_factor: 3.0
+        inflation_radius: 0.35
+
+      always_send_full_costmap: true
+   
+
+
