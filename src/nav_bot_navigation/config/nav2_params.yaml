@@ -148,10 +148,12 @@ controller_server:
       vx_max: 0.3
       vx_min: -0.35
       vy_max: 0.0                     # DiffDrive 无侧向速度
-      wz_max: 2.0                     # ★ 4WD 滑移补偿值，待阶跃实测后再修正
+      wz_max: 1.5                     # ★ 阶跃标定后与 gz DiffDrive 插件上限对齐
+                                      #   （properties.xacro max_angular_vel=1.5），
+                                      #   实际兑现比例 ~0.55 → 真实偏航 ≈ 0.83 rad/s
       vx_std: 0.2
       vy_std: 0.0                     # 不采样 vy，省算力
-      wz_std: 0.42                    # 保持 stock 的 wz_std / wz_max ≈ 0.21 比例
+      wz_std: 0.32                    # 保持 stock 的 wz_std / wz_max ≈ 0.21 比例
       ax_max: 3.0
       ax_min: -3.0
       az_max: 3.5                     # az_max / wz_max ≈ 1.75，与 stock 的 1.84 基本一致
@@ -206,11 +208,11 @@ behavior_server:
 
     simulate_ahead_time: 2.0        # 预判未来 2 s 是否撞
 
-    # ★ 转速上限必须 == velocity_smoother.max_velocity[2]。
+    # ★ 转速上限必须 == velocity_smoother.max_velocity[2] == gz 插件 max_angular_vel。
     #   behavior 的 cmd_vel 同样被 remap 到 cmd_vel_nav 并经过 smoother；
-    #   这里写大于 2.0 的值会被 smoother 静默截断，白白让你以为补偿了。
-    max_rotational_vel: 2.0
-    min_rotational_vel: 0.5         # 末段收敛速度：4WD 下指令只兑现 ~10~20%，
+    #   阶跃标定：兑现比例 ~0.55，写 2.0 会被插件截断，MPPI 预测失真。
+    max_rotational_vel: 1.5
+    min_rotational_vel: 0.5         # 末段收敛速度：4WD 下指令只兑现 ~55%，
                                     # 太小会让 Spin 在容差边缘反复微调
     rotational_acc_lim: 3.2
     
@@ -228,8 +230,8 @@ velocity_smoother:
     stamp_smoothed_velocity_with_smoothing_time: false
 
     # ★ 三个一致性约束（与 controller_server.FollowPath 对齐，不一致会被静默截断）
-    max_velocity: [0.3, 0.0, 2.0]    # == vx_max / wz_max
-    min_velocity: [-0.35, 0.0, -2.0] # == vx_min / -wz_max
+    max_velocity: [0.3, 0.0, 1.5]    # == vx_max / wz_max（阶跃标定后对齐插件上限）
+    min_velocity: [-0.35, 0.0, -1.5] # == vx_min / -wz_max
     max_accel: [2.5, 0.0, 3.2]
     max_decel: [-2.5, 0.0, -3.2]
 
