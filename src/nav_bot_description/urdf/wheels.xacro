@@ -28,15 +28,9 @@
         <material name="tire_black"/>
       </visual>
       <collision>
-        <!-- ★ 球体碰撞替代圆柱（T4.4 实验结论）：圆柱轮原地旋转时接地为
-             圆形棱边，四轮棱边同时侧滑，ODE 与 DART 两个引擎都会进入
-             "轮空转+车身锁死"双稳态（gyro 指数衰减到 0，平移不受影响），
-             调摩擦/求解器/步长/换引擎均无效——几何级接触问题。
-             球体接触各向同性，侧滑平滑，预期消除双稳态（滚动半径不变，
-             球心=轮心；外观仍为圆柱 mesh 不受影响）。验证结论见下。 -->
-        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <origin xyz="0 0 0" rpy="${pi/2.0} 0 0"/>
         <geometry>
-          <sphere radius="${wheel_radius}"/>
+          <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
         </geometry>
       </collision>
       <!-- 惯量主轴已对齐 link y 轴，无需再转 -->
