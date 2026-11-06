@@ -25,17 +25,16 @@
       name="gz::sim::systems::Imu">
     </plugin>
 
-    <!-- T4 实验链结论（2026-11-06）：ODE 调参/步长/迭代与换 DART 引擎均无法
-         消除原地旋转"轮空转+车身锁死"双稳态——两引擎同现象证明是几何级
-         接触问题，根因为圆柱轮碰撞体棱边侧滑（见 wheels.xacro，已改球体）。
-         DART 备注可用（RTF 0.85 左右），如 ODE 后续再出接触问题可切 dart。 -->
+    <!-- 旋转锁死根治记录（2026-11-06，见 experiments/slip_experiment.py）：
+         本环境 gz-physics vendor 无 ODE 插件，仿真实际运行 dartsim 引擎
+         （DART 内置 ODE-LCP 移植求解器）。此前所有 <ode><solver> 调参
+         （iters/cfm/erp）与步长实验均被 DART 静默忽略、属无效操作。
+         锁死 = DART 摩擦金字塔静摩擦自锁双稳态，根治手段为轮子
+         slip1=slip2=0.05 摩擦顺应性（见 nav_bot_description/urdf/gazebo.xacro），
+         原地旋转锁死率 3/3 → 0/3，平移不受损。球体轮实验已回滚为圆柱。
+         本 world 保留 1ms 步长与 ODE solver 块（对 DART 无害，若未来
+         切换真 ODE 引擎可复用）。 -->
     <physics name="1ms" type="ignored">
-        <!-- A1 实验结论（2026-11-06）：步长 0.002 未消除旋转锁死（10/12 段锁死），
-             且 RTF 崩至 0.44（原 1.0），实时性不可接受，已回滚到 0.005。
-             保留 ODE solver iters 100（无害）。
-             旋转锁死定性为 gz ODE + DiffDrive 速度强制控制的双稳态限制，
-             实车不存在（电机力矩闭环无此空转解）。运营对策：监控
-             gyro≈0+轮速满速 → 重启仿真。根治候选只剩 dart 物理引擎。 -->
         <max_step_size>0.005</max_step_size>
         <real_time_factor>1.0</real_time_factor>
         <ode>

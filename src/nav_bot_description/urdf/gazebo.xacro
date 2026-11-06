@@ -45,26 +45,45 @@
   <!-- mu1=滚动方向摩擦（提供驱动力）；mu2=侧向摩擦（转向必须侧滑）。
        mu1=0.3/mu2=0.9（装反）→ 完全无法转向、纯侧滑；
        mu1=1.0/mu2=0.3 + kp=1e6 → 出生点旋转健康（4 步阶跃实测 ratio ~0.55）。
-       ★ 已知物理层问题：纯原地旋转（四轮全侧滑）可能触发 gz ODE "轮空转+
-         车身锁死"双稳态——轮速满速执行但 gyro 指数衰减到 0，平移不受影响，
-         只能重启仿真恢复。曾试验 mu1=0.8/mu2=0.5 + kp=1e5，反而出生点开局
-         即锁死（双稳态振荡），已回滚到本组参数。根本缓解待验证：减小仿真
-         步长（world physics max_step_size）/ 换 dart 物理引擎。 -->
+       ★ 根治记录（2026-11-06，见 experiments/slip_experiment.py）：
+         1) 本环境 gz-physics vendor 无 ODE 插件，仿真实际运行 dartsim 引擎
+            （DART 内置 ODE-LCP 移植求解器、摩擦金字塔）。world 里 <ode><solver>
+            调参（iters/cfm/erp）被 DART 静默忽略，此前"ODE 调参"实验全部无效。
+         2) 旋转锁死（轮速满速执行+gyro≈0）= DART 摩擦金字塔静摩擦自锁双稳态。
+            治愈手段 = 轮子摩擦金字塔 slip 顺应性（dartsim 原生支持 SDF 解析）：
+            slip1=slip2=0.05 → 原地旋转 0% 锁死（对照 3/3 全锁），ratio 稳定 0.46；
+            单独 slip2（任意值）无效；单独 slip1 反而完全无法转向（驱动力漏光）。
+            平移不受损（v比=1.00，零偏航漂移）。slip ∈ [0.02, 0.30] 均有效，
+            取 0.05 折中（裕度与贴实兼顾）。
+         3) 注意：slip 参数随轮碰撞体走（gazebo reference 标签），地毯/地板
+            表面无需改动。 -->
   <gazebo reference="wheel_lf_link">
     <mu1>1.0</mu1><mu2>0.3</mu2>
     <kp>1000000.0</kp><kd>100.0</kd>
+    <collision><surface><friction><ode>
+      <slip1>0.05</slip1><slip2>0.05</slip2>
+    </ode></friction></surface></collision>
   </gazebo>
   <gazebo reference="wheel_rf_link">
     <mu1>1.0</mu1><mu2>0.3</mu2>
     <kp>1000000.0</kp><kd>100.0</kd>
+    <collision><surface><friction><ode>
+      <slip1>0.05</slip1><slip2>0.05</slip2>
+    </ode></friction></surface></collision>
   </gazebo>
   <gazebo reference="wheel_lb_link">
     <mu1>1.0</mu1><mu2>0.3</mu2>
     <kp>1000000.0</kp><kd>100.0</kd>
+    <collision><surface><friction><ode>
+      <slip1>0.05</slip1><slip2>0.05</slip2>
+    </ode></friction></surface></collision>
   </gazebo>
   <gazebo reference="wheel_rb_link">
     <mu1>1.0</mu1><mu2>0.3</mu2>
     <kp>1000000.0</kp><kd>100.0</kd>
+    <collision><surface><friction><ode>
+      <slip1>0.05</slip1><slip2>0.05</slip2>
+    </ode></friction></surface></collision>
   </gazebo>
 
   <!-- ==================== 激光雷达（gpu_lidar） ==================== -->
