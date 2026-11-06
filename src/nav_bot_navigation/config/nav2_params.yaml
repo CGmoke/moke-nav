@@ -219,6 +219,30 @@ behavior_server:
 
 
 
+smoother_server:
+  ros__parameters:
+    use_sim_time: true
+    smoother_plugins: ["simple_smoother"]
+    simple_smoother:
+      plugin: "nav2_smoother::SimpleSmoother"
+      tolerance: 1.0e-10                # 平滑后路径偏离原路径的容忍度（越大越激进）
+      max_its: 1000                     # 迭代上限，防死循环
+      do_refinement: true               # 多轮 refinement，平滑效果更好
+      # ★ SimpleSmoother 会把路径点向代价低处偏移；inflation 0.35 下
+      #   平滑后的路径更贴走廊中线，窄门通过性提升
+
+waypoint_follower:
+  ros__parameters:
+    use_sim_time: true
+    loop_rate: 20
+    stop_on_failure: false              # 某个航点失败后继续走下一个（巡逻场景要 true 还是 false 按需求）
+    action_server_result_timeout: 900.0
+    waypoint_task_executor_plugin: "wait_at_waypoint"
+    wait_at_waypoint:
+      plugin: "nav2_waypoint_follower::WaitAtWaypoint"
+      enabled: true
+      waypoint_pause_duration: 200      # 每个航点停留 200 ms；巡逻驻留改成毫秒值
+
 velocity_smoother:
   ros__parameters:
     use_sim_time: true

@@ -26,6 +26,12 @@
     </plugin>
 
     <physics name="1ms" type="ignored">
+        <!-- A1 实验结论（2026-11-06）：步长 0.002 未消除旋转锁死（10/12 段锁死），
+             且 RTF 崩至 0.44（原 1.0），实时性不可接受，已回滚到 0.005。
+             保留 ODE solver iters 100（无害）。
+             旋转锁死定性为 gz ODE + DiffDrive 速度强制控制的双稳态限制，
+             实车不存在（电机力矩闭环无此空转解）。运营对策：监控
+             gyro≈0+轮速满速 → 重启仿真。根治候选只剩 dart 物理引擎。 -->
         <max_step_size>0.005</max_step_size>
         <real_time_factor>1.0</real_time_factor>
         <ode>

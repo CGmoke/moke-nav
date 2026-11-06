@@ -117,6 +117,30 @@ def setup(context, *args, **kwargs):
         ],
     )
 
+    # ── smoother_server：路径平滑（NavigateThroughPoses 的 BT 会调 SmoothPath）──
+    smoother_server = Node(
+        package='nav2_smoother',
+        executable='smoother_server',
+        name='smoother_server',
+        output='screen',
+        respawn=True,
+        respawn_delay=2.0,
+        parameters=[params_file, {'use_sim_time': use_sim_time}],
+        remappings=remappings,
+    )
+
+    # ── waypoint_follower：多航点巡逻（也是 lifecycle 节点，挂进 node_names）──
+    waypoint_follower = Node(
+        package='nav2_waypoint_follower',
+        executable='waypoint_follower',
+        name='waypoint_follower',
+        output='screen',
+        respawn=True,
+        respawn_delay=2.0,
+        parameters=[params_file, {'use_sim_time': use_sim_time}],
+        remappings=remappings,
+    )
+
     # ── 第二套 lifecycle_manager：只管导航节点，与定位那套互不影响 ──
     #    node_names 必须与上面各 Node 的 name 逐字一致，顺序即 activate 顺序
     lifecycle_manager_navigation = Node(
@@ -128,8 +152,10 @@ def setup(context, *args, **kwargs):
             {'autostart': autostart},
             {'node_names': [
                 'controller_server',
+                'smoother_server',
                 'planner_server',
                 'behavior_server',
+                'waypoint_follower',
                 'bt_navigator',
                 'velocity_smoother',
             ]},
@@ -150,8 +176,10 @@ def setup(context, *args, **kwargs):
         LogInfo(msg=f"[INFO] params_file = {params_file}"),
         localization,
         controller_server,
+        smoother_server,
         planner_server,
         behavior_server,
+        waypoint_follower,
         bt_navigator,
         velocity_smoother,
         lifecycle_manager_navigation,
