@@ -29,7 +29,7 @@ import time
 
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import Imu
+from sensor_msgs.msg import Imu, JointState
 from geometry_msgs.msg import Twist
 from tf2_msgs.msg import TFMessage
 
@@ -44,7 +44,9 @@ data_lock = threading.Lock()
 imu_buf = []      # [(t_sim, gz)]  陀螺仪 z
 cmd_buf = []      # [(t_wall, vx, wz)]
 tf_buf = []       # [(t_sim, x, y, yaw)]  EKF odom->base_footprint
-truth_buf = []    # [(t_sim, x, y, yaw)]  gz 世界真值
+map_odom_buf = [] # [(t_sim, x, y, yaw)]  AMCL map->odom（巡逻到达检测用 map 系位姿）
+truth_buf = []    # [(t_sim, x, y, z, yaw)]  gz 世界真值
+js_buf = []       # [(t_sim, {joint: velocity})]  轮关节速度（锁死证据链）
 truth_alive = True
 
 active_scenario = None
@@ -66,6 +68,7 @@ class Monitor(Node):
         self.create_subscription(Imu, '/imu/data', self.on_imu, 30)
         self.create_subscription(Twist, '/cmd_vel', self.on_cmd, 30)
         self.create_subscription(TFMessage, '/tf', self.on_tf, 50)
+        self.create_subscription(JointState, '/joint_states', self.on_js, 30)
 
     def on_imu(self, msg):
         t = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
@@ -91,6 +94,23 @@ class Monitor(Node):
                     tf_buf.append((t, p.x, p.y, yaw))
                     if len(tf_buf) > 4000:
                         del tf_buf[:2000]
+            elif tr.header.frame_id == 'map' and tr.child_frame_id == 'odom':
+                t = tr.header.stamp.sec + tr.header.stamp.nanosec * 1e-9
+                q = tr.transform.rotation
+                p = tr.transform.translation
+                yaw = math.atan2(2 * (q.w * q.z), 1 - 2 * q.z ** 2)
+                with data_lock:
+                    map_odom_buf.append((t, p.x, p.y, yaw))
+                    if len(map_odom_buf) > 1500:
+                        del map_odom_buf[:800]
+
+    def on_js(self, msg):
+        t = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+        vel = dict(zip(msg.name, msg.velocity))
+        with data_lock:
+            js_buf.append((t, vel))
+            if len(js_buf) > 1500:
+                del js_buf[:800]
 
 
 def ros_spin():
@@ -220,37 +240,141 @@ def stop_cmd():
     publish_cmd(0.0, 0.0, 1.0)
 
 
-# ── 锁死检测（陀螺仪为旋转真值） ──
+# ── 锁死检测（陀螺仪为旋转真值）+ 证据链记录器 ──
+#
+# 判定哲学：区分"真锁死"与"瞬态"，靠三路独立证据交叉验证：
+#   ① /cmd_vel    指令（取最新值而非窗口 max —— 修复减速段残留旧值的窗口错位误计）
+#   ② /imu/data   陀螺仪 gz（车体旋转真值）
+#   ③ gz 世界真值 yaw 速率（第二旋转证人，校验陀螺仪）
+#   ④ /joint_states 轮速（真锁死历史特征：轮速满速执行 + 车体不转）
+#
+# 纪元（epoch）对齐：wz 指令从 <0.25 跨到 ≥0.25 视为新纪元；
+#   纪元前 0.8s 是物理爬坡期（az_max=3.5 → 0.43s 达满速 + 传感器滞后），不计锁死。
+#   真锁死会持续 2.5s+ 且 gz≈0，不受爬坡豁免影响。
 
 grace_until = [0.0]  # 每场景前 1.2s 指令建立瞬态不计锁死
+EPOCH_MIN_WZ = 0.25  # 低于此视为非旋转指令
+SPINUP_SKIP = 0.8    # 纪元开始后的物理爬坡豁免窗
+LOCK_RATIO = 0.1     # gz < 10%×wz_cmd 判疑似
+WHEELS = ('left_front_wheel_joint', 'right_front_wheel_joint',
+          'left_rear_wheel_joint', 'right_rear_wheel_joint')
+TRACK_HALF, WHEEL_R = 0.24, 0.09   # 纯旋转期望轮速 = wz × TRACK_HALF / WHEEL_R
+
+episode = {'open': False, 'scenario': None, 'idx': 0, 'samples': []}
+
+
+def truth_motion(t_sim, dur=1.0):
+    """gz 真值在 t_sim 前后 dur 窗内的 (yaw_rate, lin_speed)，样本不足返回 (None, None)。"""
+    with data_lock:
+        frames = [f for f in truth_buf if t_sim - dur <= f[0] <= t_sim + 0.2]
+    if len(frames) < 3:
+        return None, None
+    dy = wrap(frames[-1][4] - frames[0][4])
+    dt = frames[-1][0] - frames[0][0]
+    if dt <= 0:
+        return None, None
+    d = math.hypot(frames[-1][1] - frames[0][1], frames[-1][2] - frames[0][2])
+    return abs(dy) / dt, d / dt
+
+
+def wheel_max_speed(t_sim):
+    """t_sim ±0.3s 内四轮最大轮速（rad/s）。"""
+    with data_lock:
+        frames = [f for f in js_buf if abs(f[0] - t_sim) < 0.3]
+    if not frames:
+        return None
+    return max(abs(vel.get(w, 0.0)) for _, vel in frames for w in WHEELS)
+
+
+def close_episode(reason):
+    """结束一个疑似锁死 episode：计算判据、写事件日志与 CSV 证据。"""
+    if not episode['open']:
+        return
+    episode['open'] = False
+    samples = episode['samples']
+    if not samples:
+        return
+    dur = samples[-1][0] - samples[0][0]
+    wz = max(s[1] for s in samples)
+    # 列序: (t, wz, vx, gz, truth_yaw_rate, truth_speed, wheel_max)
+    gz_ratio = min(s[3] / s[1] for s in samples if s[1] > 0.05)
+    ty = [s[4] for s in samples if s[4] is not None]
+    ty_ratio = (sum(ty) / len(ty)) / wz if ty and wz > 0.05 else None
+    ws = [s[6] for s in samples if s[6] is not None]
+    ws_ratio = (max(ws) / (wz * TRACK_HALF / WHEEL_R)) if ws and wz > 0.05 else None
+    # 自动判定（真值不转+轮子在转即锁死，与时长无关；阴性对照 S4 短 episode 验证）
+    if (gz_ratio < LOCK_RATIO
+            and (ty_ratio is None or ty_ratio < 0.15)
+            and (ws_ratio is None or ws_ratio > 0.6)):
+        verdict = '真锁死(高度疑似)' + ('' if dur >= 2.5 else '(短时)')
+    elif ty_ratio is not None and ty_ratio >= 0.3:
+        verdict = '瞬态(车体确实在转:陀螺仪滞后/爬坡)'
+    elif dur < 2.5:
+        verdict = '瞬态(短时爬坡/减速错位)'
+    else:
+        verdict = '瞬态(证据不足,需人工看CSV)'
+    episode['idx'] += 1
+    csv_path = f"{EX}/lock_ep_{episode['idx']:02d}_{episode['scenario']}.csv"
+    fmt = lambda v: 'na' if v is None else f'{v:.2f}'
+    line = (f"[{time.strftime('%m-%d %H:%M:%S')}] [{episode['scenario']}] "
+            f"时长={dur:.1f}s wz={wz:.2f} vx={samples[-1][2]:.2f} "
+            f"gz/指令={fmt(gz_ratio)} 真值w/指令={fmt(ty_ratio)} "
+            f"轮速/期望={fmt(ws_ratio)} ({reason}) → {verdict}")
+    with open(f'{EX}/lock_events.log', 'a') as f:
+        f.write(line + f'\n  证据: {csv_path}\n')
+    with open(csv_path, 'w') as f:
+        f.write('t_wall,wz_cmd,vx_cmd,gz_mean,truth_yaw_rate,truth_speed,wheel_max\n')
+        for s in samples:
+            f.write(','.join('na' if v is None else f'{v:.3f}' for v in s) + '\n')
 
 
 def lock_detector():
+    epoch_start = None
     while not stop_flag.is_set():
         time.sleep(0.2)
         now = time.time()
         with data_lock:
-            recent_cmd = [(t, vx, wz) for t, vx, wz in cmd_buf if now - t < 1.2]
-            imu = list(imu_buf[-300:])
-        if not recent_cmd or len(imu) < 20:
+            # ★ 取"最新指令"而非窗口 max：velocity_smoother 减速时窗口内残留
+            #   大值会把已停转的车误判为锁死（N3 瞬态计数的假阳性根源）
+            recent = [c for c in cmd_buf if now - c[0] < 0.4]
+            imu = list(imu_buf[-400:])
+        if now < grace_until[0] or len(imu) < 20:
             continue
-        if now < grace_until[0]:
+        if recent:
+            _, vx_now, wz_now = recent[-1]
+            wz_now, vx_now = abs(wz_now), abs(vx_now)
+        else:
+            vx_now = wz_now = 0.0
+        if wz_now < EPOCH_MIN_WZ:
+            if episode['open']:
+                close_episode('cmd_stop')
+            epoch_start = None
             continue
-        t0, t1 = imu[0][0], imu[-1][0]
-        if t1 - t0 < 1.5:
+        if epoch_start is None:
+            epoch_start = now
+        if now - epoch_start < SPINUP_SKIP and not episode['open']:
+            continue  # 爬坡豁免
+        imu_recent = [(t, g) for t, g in imu if imu[-1][0] - 1.0 <= t <= imu[-1][0]]
+        # ★ 窗口锚必须是 imu 自己的仿真时间戳：gz server 启动延迟使仿真时间
+        #   恒定落后墙钟若干秒，用墙钟 now 过滤会匹配 0 样本 → 判定器失明
+        #   （阴性对照实验发现的 bug）。墙钟只用于 cmd_buf（同为墙钟）。
+        if len(imu_recent) < 10:
             continue
-        wz_cmd = max(abs(wz) for _, _, wz in recent_cmd)
-        if wz_cmd < 0.25:
-            continue
-        # 指令窗口对应 imu 末段 1.5s 的平均 |gz|
-        tail = [g for t, g in imu if t >= t1 - 1.5]
-        if not tail:
-            continue
-        gz_mean = sum(abs(g) for g in tail) / len(tail)
-        if gz_mean < 0.1 * wz_cmd:
+        gz_mean = sum(abs(g) for _, g in imu_recent) / len(imu_recent)
+        if gz_mean < LOCK_RATIO * max(wz_now, 0.05):
+            if not episode['open']:
+                episode['open'] = True
+                episode['scenario'] = active_scenario or 'unknown'
+                episode['samples'] = []
+            t_imu = imu_recent[-1][0]
+            ty, ts = truth_motion(t_imu)
+            ws = wheel_max_speed(t_imu)
+            episode['samples'].append((now, wz_now, vx_now, gz_mean, ty, ts, ws))
             sc = active_scenario
             if sc:
                 lock_by_scenario[sc] = lock_by_scenario.get(sc, 0.0) + 0.2
+        elif episode['open']:
+            close_episode('recovered')
 
 
 def arm_grace(seconds=1.2):
@@ -465,6 +589,8 @@ def main():
     rclpy.init()
     global monitor_node
     monitor_node = Monitor()
+    with open(f'{EX}/lock_events.log', 'a') as f:
+        f.write(f"==== 运行开始 mode={mode} {time.strftime('%Y-%m-%d %H:%M:%S')} ====\n")
     threading.Thread(target=ros_spin, daemon=True).start()
     threading.Thread(target=truth_reader, daemon=True).start()
     threading.Thread(target=truth_health_watch, daemon=True).start()
@@ -506,7 +632,9 @@ def main():
             time.sleep(5)  # AMCL 粒子稳定
             for name, x, y in [('N1-南走廊直线', 2.5, -1.4),
                                ('N2-窄门区域', -6.8, -1.4),
-                               ('N3-北屋穿行', -4.5, 2.6)]:
+                               ('N3-北屋穿行', -1.5, 2.7)]:
+                # N3 目标 (-4.5,2.6) 位于床/衣柜膨胀区内，规划器直接失败
+                # （T5 实测北屋可达自由空间 ≈ (-1, 2.7)），故改用该点。
                 ok, detail = nav_goal(x, y, name)
                 results[name] = ok
                 print(f'  [{"✓" if ok else "✗"}] {name}: {detail}  '
@@ -514,6 +642,9 @@ def main():
             kill_stack(procs)
     finally:
         kill_stack(procs)
+        close_episode('shutdown')  # 收尾未闭合的疑似锁死 episode
+        with open(f'{EX}/lock_events.log', 'a') as f:
+            f.write(f"==== 运行结束 {time.strftime('%Y-%m-%d %H:%M:%S')} ====\n")
         # 轨迹留档（事后分析：撞家具/下沉/漂移定位）
         try:
             with data_lock:
